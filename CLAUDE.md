@@ -1,0 +1,18 @@
+# ComplyDesk (working name) — working rules
+
+Secretarial compliance for CS firms and in-house CS: Private Ltd + OPC (MVP). Same stack and patterns as VendorGate (rsambamurthy/VOB): React + Vite, Node/Express + TypeScript, Postgres + Drizzle, cookie sessions, permission-based roles.
+
+## Reuse, never duplicate (standing rule)
+Build once, use everywhere. Before writing a helper, component or rule, look for an existing one and extend it.
+
+### Where the shared pieces live
+- **Compliance rules are data**: built-ins in `server/src/compliance/catalogue.ts` (seeded to `rules`, tenant_id null); a workspace overrides by code (Administration → Compliance rules). Never hard-code a due date elsewhere.
+- **Engine** (pure, tested): `server/src/compliance/engine.ts` — `obligationsFor`, `nextKycFy`, `eventObligation`, `lateFeeEstimate`. Date helpers `compliance/dates.ts` (FY, first FY, AGM last date).
+- **Sync**: `compliance/sync.ts` — `syncClient` / `syncTenant` store engine output; status/SRN/notes are never overwritten; nightly job `jobs.ts`.
+- **Client master writes** only through `services/clients.ts` (routes and Excel import both use it). Every write re-syncs.
+- **Obligations** read/update through `services/obligations.ts`; buckets (overdue/week/month/open/done) defined once in `bucketWhere`. Meeting → anchor linkage in `feedAnchors` (AGM held → AGM date; earliest board meeting → first BM date).
+- **Field rules**: `server/src/lib/validators.ts` — screens and import share them.
+- **Web**: `AppFrame`/`NavIcon`/`TabStrip`/`ExcelImport`/styles copied from VendorGate; one `RecordModal` form for every record (`components/RecordForm.tsx`); field lists in `components/ClientForms.tsx`; one `ObligationTable` / `ObligationModal` / `EventModal` (`components/Obligations.tsx`) for dashboard, calendar and client tab; labels in `lib/format.ts`; product name only in `components/Brand.tsx`.
+
+## Commands
+`npm run dev` · `npm test` (engine) · `npx tsx server/scripts/smoke.ts` (end-to-end, needs running API + seed) · `npm run db:seed` (demo workspace "demo", admin@demo.in / Demo@12345) · `npm run db:generate` after schema changes.
