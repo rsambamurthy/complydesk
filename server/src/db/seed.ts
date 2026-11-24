@@ -4,6 +4,8 @@
  */
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { db, schema, pool } from '../lib/core.js';
 import { migrate, seedCatalogue } from './migrate.js';
 import { createWorkspace } from '../services/tenants.js';
@@ -12,10 +14,10 @@ import { syncClient } from '../compliance/sync.js';
 import { updateObligation } from '../services/obligations.js';
 import { addDays } from '../compliance/dates.js';
 
-await migrate();
-await seedCatalogue();
+/** Creates the demo workspace unless it exists. Run from the CLI (npm run db:seed) or on start with SEED_DEMO=true. */
+export async function seedDemo() {
 const [exists] = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, 'demo'));
-if (exists) { console.log('Demo workspace already there'); await pool.end(); process.exit(0); }
+if (exists) { console.log('Demo workspace already there'); return; }
 
 const { tenant, roles } = await createWorkspace({ name: 'Rao & Associates, Company Secretaries', slug: 'demo', admin: { name: 'Lakshmi Rao', email: 'admin@demo.in', password: 'Demo@12345' } });
 const t = tenant.id;
@@ -57,4 +59,8 @@ for (const x of await db.select().from(o).where(eq(o.tenantId, t))) {
   else if (x.fy === 2025 && x.form === 'AOC-4' && x.clientId === kaveri.id) await updateObligation(t, x.id, { status: 'FILED', filedOn: '2026-10-20', srn: 'F80412233' });
 }
 console.log('Seeded demo workspace: workspace "demo", admin@demo.in / Demo@12345');
-await pool.end();
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  await migrate(); await seedCatalogue(); await seedDemo(); await pool.end();
+}

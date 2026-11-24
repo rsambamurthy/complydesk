@@ -17,4 +17,4 @@ npm run dev                     # web :5173, API :4000
 Sign in: workspace `demo`, `admin@demo.in` / `Demo@12345`.
 
 ## Deploy (Railway)
-Dockerfile + railway.json; set `DATABASE_URL`. Migrations and the rules catalogue run on start.
+Dockerfile + railway.json; set `DATABASE_URL`. Migrations and the rules catalogue run on start; `SEED_DEMO=true` also creates the demo workspace.
