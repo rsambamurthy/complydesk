@@ -9,6 +9,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionProvider, RequireStaff } from './lib/session';
 import { Shell } from './components/Shell';
 import { Login } from './pages/Login';
+import { Signup, VerifyEmail } from './pages/Signup';
+import { Platform } from './pages/Platform';
 import { Dashboard } from './pages/Dashboard';
 import { Calendar } from './pages/Calendar';
 import { Clients } from './pages/Clients';
@@ -24,6 +26,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <SessionProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route element={<RequireStaff><Shell /></RequireStaff>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
@@ -33,6 +37,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/admin/rules" element={<Rules />} />
             <Route path="/admin/users" element={<Users />} />
             <Route path="/admin/audit" element={<Audit />} />
+            <Route path="/platform" element={<Platform />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

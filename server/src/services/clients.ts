@@ -7,6 +7,7 @@ import type { z } from 'zod';
 import { db, schema, HttpError, notFound } from '../lib/core.js';
 import type { clientInput, personInput, shareholderInput, auditorInput, yearInput } from '../lib/validators.js';
 import { syncClient } from '../compliance/sync.js';
+import { assertClientCapacity } from './platform.js';
 
 const { clients, people, shareholders, auditors, clientYears } = schema;
 type ClientIn = z.output<typeof clientInput>;
@@ -18,6 +19,7 @@ export async function getClient(tenantId: string, id: string) {
 }
 
 export async function createClient(tenantId: string, input: ClientIn, opts: { sync?: boolean } = {}) {
+  await assertClientCapacity(tenantId);
   const [dupe] = await db.select({ id: clients.id }).from(clients).where(and(eq(clients.tenantId, tenantId), eq(clients.cin, input.cin)));
   if (dupe) throw new HttpError(409, `A client with CIN ${input.cin} already exists`, { cin: 'Already added' });
   const [c] = await db.insert(clients).values({ tenantId, ...input }).returning();

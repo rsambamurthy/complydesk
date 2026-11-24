@@ -5,7 +5,15 @@ export interface Me {
   user: { id: string; name: string; email: string; clientIds: string[] };
   roles: { id: string; key: string; name: string }[];
   permissions: Permission[];
+  access: Access;
+  platformAdmin: boolean;
+  emailVerified: boolean;
 }
+
+export type Access =
+  | { ok: true; state: 'ACTIVE' }
+  | { ok: true; state: 'TRIAL'; daysLeft: number; clientLimit: number | null }
+  | { ok: false; state: 'TRIAL_ENDED' | 'PAYMENT_DUE' | 'SUSPENDED' | 'PENDING_APPROVAL'; message: string };
 
 export type ObStatus = 'OPEN' | 'IN_PROGRESS' | 'FILED' | 'NOT_APPLICABLE';
 

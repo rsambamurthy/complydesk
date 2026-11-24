@@ -5,7 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { HttpError, env } from './lib/core.js';
-import { requireStaff } from './auth/session.js';
+import { requireStaff, requireWritable } from './auth/session.js';
+import { platformRouter } from './routes/platform.js';
 import { authRouter } from './routes/auth.js';
 import { clientsRouter } from './routes/clients.js';
 import { obligationsRouter } from './routes/obligations.js';
@@ -26,10 +27,11 @@ export function createApp() {
   });
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api/auth', authRouter);
-  app.use('/api/clients', requireStaff, clientsRouter);
-  app.use('/api/obligations', requireStaff, obligationsRouter);
-  app.use('/api/import', requireStaff, importRouter);
-  app.use('/api/admin', requireStaff, adminRouter);
+  app.use('/api/platform', requireStaff, platformRouter);
+  app.use('/api/clients', requireStaff, requireWritable, clientsRouter);
+  app.use('/api/obligations', requireStaff, requireWritable, obligationsRouter);
+  app.use('/api/import', requireStaff, requireWritable, importRouter);
+  app.use('/api/admin', requireStaff, requireWritable, adminRouter);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'No such API')));
 
   // The built web app (production: one container serves both).

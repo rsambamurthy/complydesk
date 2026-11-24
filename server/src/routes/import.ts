@@ -13,6 +13,7 @@ import { requirePerm } from '../auth/session.js';
 import { clientInput, personInput, shareholderInput, fieldErrors, DESIGNATIONS } from '../lib/validators.js';
 import { createClient, peopleSvc, shareholdersSvc } from '../services/clients.js';
 import { syncClient } from '../compliance/sync.js';
+import { assertClientCapacity } from '../services/platform.js';
 
 export const importRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
@@ -132,6 +133,7 @@ importRouter.post('/', requirePerm('clients.manage'), upload.single('file'), h(a
 
   const created: string[] = [];
   if (req.query.commit) {
+    await assertClientCapacity(tenantId, newClients.length);
     const ids = new Map(existing);
     for (const c of newClients) { const row = await createClient(tenantId, c.input, { sync: false }); ids.set(row.cin, row.id); created.push(row.id); }
     for (const k of kids) {

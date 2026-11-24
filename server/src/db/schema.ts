@@ -17,7 +17,51 @@ export const tenants = pgTable('tenants', {
   slug: text('slug').notNull().unique(),
   name: text('name').notNull(),
   settings: jsonb('settings').$type<TenantSettings>().notNull().default({}),
+  /** PENDING_APPROVAL | TRIAL | ACTIVE | SUSPENDED (see services/platform.ts accessState) */
+  status: text('status').notNull().default('ACTIVE'),
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+  /** Paid until (manual activation now; Razorpay later). Null while ACTIVE = no end. */
+  paidUntil: timestamp('paid_until', { withTimezone: true }),
+  icsiNumber: text('icsi_number'),
+  city: text('city'),
+  gstin: text('gstin'),
+  contactEmail: text('contact_email'),
+  contactMobile: text('contact_mobile'),
+  source: text('source').notNull().default('ADMIN'),
+  platformNotes: text('platform_notes'),
   createdAt: createdAt(),
+});
+
+/** Integrata-wide settings (one row, id 'default'), changed from the platform console. */
+export const platformSettings = pgTable('platform_settings', {
+  id: text('id').primaryKey().default('default'),
+  /** New sign-ups wait for Integrata's approval before they can use the workspace. */
+  requireApproval: boolean('require_approval').notNull().default(false),
+  trialDays: integer('trial_days').notNull().default(30),
+  /** Client companies allowed during the trial (null = no limit). */
+  trialClientLimit: integer('trial_client_limit').default(10),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One-time links (email verification; later password reset and invites). Only the hash is stored. */
+export const authTokens = pgTable('auth_tokens', {
+  id: id(),
+  tokenHash: text('token_hash').notNull().unique(),
+  purpose: text('purpose').notNull(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** Every platform action on a workspace (approve, suspend, extend trial…). */
+export const platformEvents = pgTable('platform_events', {
+  id: id(),
+  tenantId: text('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+  type: text('type').notNull(),
+  by: text('by'),
+  data: jsonb('data'),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const users = pgTable('users', {
@@ -31,6 +75,8 @@ export const users = pgTable('users', {
   /** Client users only see these clients (empty = firm staff, sees what their role allows). */
   clientIds: jsonb('client_ids').$type<string[]>().notNull().default([]),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+  mobile: text('mobile'),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('users_tenant_email_uq').on(t.tenantId, t.email)]);
 

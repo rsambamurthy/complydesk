@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, lastWorkspace } from '../lib/api';
 import { useSession } from '../lib/session';
 import { Alert } from '../components/ui';
@@ -39,6 +39,7 @@ export function Login() {
           <div className="field"><label htmlFor="em">Email</label><input id="em" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required /></div>
           <div className="field"><label htmlFor="pw">Password</label><input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></div>
           <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          <p className="small muted center" style={{ margin: 0 }}>New to ComplyDesk? <Link to="/signup">Start a free trial for your firm</Link></p>
         </form>
       </div>
     </div>

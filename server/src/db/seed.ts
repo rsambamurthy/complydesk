@@ -22,7 +22,7 @@ if (exists) { console.log('Demo workspace already there'); return; }
 const { tenant, roles } = await createWorkspace({ name: 'Rao & Associates, Company Secretaries', slug: 'demo', admin: { name: 'Lakshmi Rao', email: 'admin@demo.in', password: 'Demo@12345' } });
 const t = tenant.id;
 const role = (k: string) => roles.find((r) => r.key === k)!.id;
-const [exec] = await db.insert(schema.users).values({ tenantId: t, name: 'Karthik S', email: 'karthik@demo.in', passwordHash: await bcrypt.hash('Demo@12345', 10) }).returning();
+const [exec] = await db.insert(schema.users).values({ tenantId: t, name: 'Karthik S', email: 'karthik@demo.in', passwordHash: await bcrypt.hash('Demo@12345', 10), emailVerifiedAt: new Date() }).returning();
 await db.insert(schema.userRoles).values({ userId: exec.id, roleId: role('CS_EXECUTIVE') });
 
 const mk = async (c: Omit<Parameters<typeof createClient>[1], 'ownerId'>, directors: [string, string, string, number | null][], holders: [string, number][], auditor?: { firm: string; to: number }, agm?: string) => {

@@ -14,5 +14,7 @@ Build once, use everywhere. Before writing a helper, component or rule, look for
 - **Field rules**: `server/src/lib/validators.ts` — screens and import share them.
 - **Web**: `AppFrame`/`NavIcon`/`TabStrip`/`ExcelImport`/styles copied from VendorGate; one `RecordModal` form for every record (`components/RecordForm.tsx`); field lists in `components/ClientForms.tsx`; one `ObligationTable` / `ObligationModal` / `EventModal` (`components/Obligations.tsx`) for dashboard, calendar and client tab; labels in `lib/format.ts`; product name only in `components/Brand.tsx`.
 
+- **Platform / sign-up / trial**: `services/platform.ts` — `signUp`, `accessState` (TRIAL / ACTIVE / TRIAL_ENDED / PAYMENT_DUE / SUSPENDED / PENDING_APPROVAL), `assertClientCapacity`, platform settings (approval switch, trial days, trial client limit), console actions. Read-only enforcement in `requireWritable` (auth/session.ts). Platform admins = emails in `PLATFORM_ADMINS`. Email via `lib/mailer.ts` (SMTP_* env; logs when unset).
+
 ## Commands
-`npm run dev` · `npm test` (engine) · `npx tsx server/scripts/smoke.ts` (end-to-end, needs running API + seed) · `npm run db:seed` (demo workspace "demo", admin@demo.in / Demo@12345) · `npm run db:generate` after schema changes.
+`npm run dev` · `npm test` (engine) · `npx tsx server/scripts/smoke.ts` and `smoke-signup.ts` (end-to-end, need running API + seed, PLATFORM_ADMINS=admin@demo.in) · `npm run db:seed` (demo workspace "demo", admin@demo.in / Demo@12345) · `npm run db:generate` after schema changes.

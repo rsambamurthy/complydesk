@@ -1,5 +1,7 @@
 /** The signed-in frame: VendorGate's AppFrame (same sidebar, top bar and groups) with this product's menu. */
+import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { api } from '../lib/api';
 import { AppFrame, type FrameEntry, type FrameGroup, type FrameLink } from './AppFrame';
 import { NavIcon } from './NavIcon';
 import { PoweredBy, PRODUCT } from './Brand';
@@ -22,6 +24,7 @@ export function Shell() {
       { to: '/clients', label: 'All clients', icon: 'clients', end: true, show: can('clients.view') },
       { to: '/clients/import', label: 'Import from Excel', icon: 'upload', show: can('clients.manage') },
     ]),
+    ...(me.platformAdmin ? keep([{ to: '/platform', label: 'Platform console', icon: 'shield', show: true }]) : []),
     group('admin', 'Administration', 'config', [
       { to: '/admin/rules', label: 'Compliance rules', icon: 'rules', show: can('clients.view') },
       { to: '/admin/users', label: 'Users', icon: 'users', show: can('users.manage') },
@@ -41,7 +44,23 @@ export function Shell() {
       user={{ initials, name: me.user.name, role: me.roles.map((r) => r.name).join(', ') || 'No role' }}
       sideFoot={<PoweredBy />}
     >
+      <AccessBar />
       <Outlet />
     </AppFrame>
+  );
+}
+
+/** Trial days left / read-only notice and the "confirm your email" reminder (VendorGate's trial-bar styles). */
+function AccessBar() {
+  const { me } = useSession();
+  const [resent, setResent] = useState(false);
+  if (!me) return null;
+  const a = me.access;
+  return (
+    <>
+      {a.state === 'TRIAL' && <div className={`trial-bar ${a.daysLeft > 7 ? 'quiet' : ''}`} role="status">Free trial · {a.daysLeft} day{a.daysLeft === 1 ? '' : 's'} left{a.clientLimit ? ` · up to ${a.clientLimit} client companies` : ''} · to subscribe, write to <a href="mailto:info@integratatech.ai">info@integratatech.ai</a></div>}
+      {!a.ok && <div className="trial-bar ended" role="status">{a.message}</div>}
+      {!me.emailVerified && <div className="trial-bar quiet" role="status">Please confirm your email ({me.user.email}) using the link we sent. {resent ? 'Sent again ✓' : <a href="#" onClick={async (e) => { e.preventDefault(); await api('/auth/resend-verification', { method: 'POST' }); setResent(true); }}>Resend link</a>}</div>}
+    </>
   );
 }

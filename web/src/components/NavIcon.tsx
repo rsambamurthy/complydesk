@@ -39,6 +39,7 @@ const PATHS: Record<string, string> = {
   calendar: 'M3 5h18v16H3zM3 9h18M8 3v4M16 3v4M7 13h2M11 13h2M15 13h2M7 17h2M11 17h2',
   rules: 'M4 6h16M4 12h10M4 18h7M17 15l2 2 3-4',
   upload: 'M12 16V4M7 9l5-5 5 5M4 20h16',
+  shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
 };
 

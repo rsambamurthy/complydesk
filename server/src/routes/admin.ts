@@ -45,7 +45,7 @@ adminRouter.post('/users', requirePerm('users.manage'), h(async (req, res) => {
   await checkRefs(tid(req), b.roleIds, b.clientIds);
   const [dupe] = await db.select({ id: users.id }).from(users).where(and(eq(users.tenantId, tid(req)), eq(users.email, b.email)));
   if (dupe) throw new HttpError(409, 'A user with this email already exists', { email: 'Already a user' });
-  const [u] = await db.insert(users).values({ tenantId: tid(req), name: b.name, email: b.email, status: b.status, clientIds: b.clientIds, passwordHash: await bcrypt.hash(b.password, 10) }).returning();
+  const [u] = await db.insert(users).values({ tenantId: tid(req), name: b.name, email: b.email, status: b.status, clientIds: b.clientIds, passwordHash: await bcrypt.hash(b.password, 10), emailVerifiedAt: new Date() }).returning();
   await db.insert(userRoles).values(b.roleIds.map((roleId) => ({ userId: u.id, roleId })));
   await audit(req, 'user.create', 'user', u.id, { email: b.email, roleIds: b.roleIds });
   res.status(201).json({ id: u.id });

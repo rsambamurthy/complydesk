@@ -21,6 +21,7 @@ export function Dashboard() {
   return (
     <div className="page">
       <div className="page-head"><div><h1>Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {me!.user.name.split(' ')[0]}</h1><p className="muted">Where every client stands today.</p></div></div>
+      {all.open + all.done === 0 && <GettingStarted />}
       <div className="tiles" style={{ gridTemplateColumns: 'repeat(5, minmax(0,1fr))' }}>
         <Tile to="/calendar?bucket=overdue" n={all.overdue} label="Overdue" bad={all.overdue > 0} sub={mine.overdue ? `${mine.overdue} with you` : undefined} />
         <Tile to="/calendar?bucket=week" n={all.week} label="Due in 7 days" warn={all.week > 0} sub={mine.week ? `${mine.week} with you` : undefined} />
@@ -63,5 +64,20 @@ function Tile({ to, n, label, sub, bad, warn }: { to: string; n: number; label: 
       <span className="tile-l">{label}</span>
       {sub && <span className="tile-sub">{sub}</span>}
     </Link>
+  );
+}
+
+/** Setup steps for a new workspace — shown until the first client is added. */
+function GettingStarted() {
+  const { can } = useSession();
+  return (
+    <section className="card pad stack" style={{ marginBottom: 16 }}>
+      <h3 style={{ margin: 0 }}>Welcome! Three steps to your first compliance calendar</h3>
+      <ol style={{ margin: 0, paddingInlineStart: 20, lineHeight: 2 }}>
+        <li><strong>Add your clients</strong> — <Link to="/clients/import">import them from Excel</Link> (with directors and shareholders) or <Link to="/clients">add one by one</Link>. Each client’s calendar appears straight away.</li>
+        {can('users.manage') && <li><strong>Invite your team</strong> — <Link to="/admin/users">add CS executives and partners</Link>.</li>}
+        <li><strong>Check the rules</strong> — <Link to="/admin/rules">the due dates the calendar uses</Link>; change any your practice reads differently.</li>
+      </ol>
+    </section>
   );
 }
