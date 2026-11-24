@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { db, schema, h, audit, HttpError, notFound } from '../lib/core.js';
 import { requirePerm } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
-import { syncTenant } from '../compliance/sync.js';
+import { workspaceRules, ruleHistoryFor, newRuleInput, ruleInput, createWorkspaceRule, saveWorkspaceRule, revertWorkspaceRule } from '../services/rules.js';
 
 const { users, roles, userRoles, rules, auditLog, clients } = schema;
 export const adminRouter = Router();
@@ -70,50 +70,29 @@ adminRouter.get('/roles', requirePerm('users.manage'), h(async (req, res) => {
   res.json(await db.select().from(roles).where(eq(roles.tenantId, tid(req))).orderBy(roles.name));
 }));
 
-// ---- Compliance rules ------------------------------------------------------------------------------------
-adminRouter.get('/rules', requirePerm('clients.view'), h(async (req, res) => {
-  const builtIn = await db.select().from(rules).where(isNull(rules.tenantId)).orderBy(rules.code);
-  const own = await db.select().from(rules).where(eq(rules.tenantId, tid(req)));
-  res.json(builtIn.map((b) => { const o = own.find((x) => x.code === b.code); return { ...(o ?? b), builtIn: b, overridden: !!o }; }));
+// ---- Compliance rules (the workspace's own changes; logic in services/rules.ts) ---------------------------
+adminRouter.get('/rules', requirePerm('clients.view'), h(async (req, res) => res.json(await workspaceRules(tid(req)))));
+
+adminRouter.get('/rules/:code/history', requirePerm('clients.view'), h(async (req, res) => res.json(await ruleHistoryFor(req.params.code, tid(req)))));
+
+adminRouter.post('/rules', requirePerm('rules.manage'), h(async (req, res) => {
+  const b = parse(newRuleInput, req.body);
+  const r = await createWorkspaceRule(tid(req), b, req.staff!.user.email);
+  await audit(req, 'rule.create', 'rule', b.code, b);
+  res.status(201).json(r);
 }));
 
-const fixedDate = z.object({ month: z.number().int().min(1).max(12), day: z.number().int().min(1).max(31), yearOffset: z.number().int().min(-1).max(2) });
-const ruleEdit = z.object({
-  title: z.string().trim().min(2),
-  active: z.boolean(),
-  notes: z.string().nullish(),
-  effectiveFrom: z.string().nullish().transform((v) => v || null),
-  effectiveTo: z.string().nullish().transform((v) => v || null),
-  due: z.union([
-    z.object({ kind: z.literal('FIXED'), date: fixedDate }),
-    z.object({ kind: z.literal('AFTER_ANCHOR'), anchor: z.enum(['AGM', 'FIRST_BM', 'INCORPORATION']), days: z.number().int().min(0).max(400), fallback: z.union([fixedDate, z.literal('AGM_LAST_DATE')]).optional() }),
-    z.object({ kind: z.literal('PERIODS'), periods: z.array(z.object({ label: z.string(), date: fixedDate })).min(1) }),
-    z.object({ kind: z.literal('AFTER_EVENT'), days: z.number().int().min(0).max(400) }),
-    z.object({ kind: z.literal('KYC_CYCLE'), everyYears: z.number().int().min(1).max(10), date: fixedDate.omit({ yearOffset: true }) }),
-    z.object({ kind: z.literal('AGM_LAST_DATE') }),
-  ]),
-  lateFee: z.union([z.object({ kind: z.literal('PER_DAY'), amount: z.number().min(0), note: z.string().optional() }), z.object({ kind: z.literal('NOTE'), note: z.string() })]).nullish(),
-});
-
-/** Saves the workspace's own version of a rule (the built-in stays as it is) and re-syncs every client. */
 adminRouter.put('/rules/:code', requirePerm('rules.manage'), h(async (req, res) => {
-  const b = parse(ruleEdit, req.body);
-  const [base] = await db.select().from(rules).where(and(isNull(rules.tenantId), eq(rules.code, req.params.code)));
-  if (!base) throw notFound('Rule not found');
-  if (base.due.kind !== b.due.kind) throw new HttpError(400, 'The kind of due date can’t be changed');
-  const { id: _id, tenantId: _t, ...copy } = base;
-  await db.insert(rules).values({ ...copy, ...b, tenantId: tid(req), updatedAt: new Date() })
-    .onConflictDoUpdate({ target: [rules.tenantId, rules.code], set: { ...b, updatedAt: new Date() } });
-  const n = await syncTenant(tid(req));
+  const b = parse(ruleInput, req.body);
+  const r = await saveWorkspaceRule(tid(req), req.params.code, b, req.staff!.user.email);
   await audit(req, 'rule.override', 'rule', req.params.code, b);
-  res.json({ ok: true, clientsUpdated: n });
+  res.json(r);
 }));
 
 adminRouter.delete('/rules/:code', requirePerm('rules.manage'), h(async (req, res) => {
-  await db.delete(rules).where(and(eq(rules.tenantId, tid(req)), eq(rules.code, req.params.code)));
-  const n = await syncTenant(tid(req));
+  await revertWorkspaceRule(tid(req), req.params.code, req.staff!.user.email);
   await audit(req, 'rule.revert', 'rule', req.params.code);
-  res.json({ ok: true, clientsUpdated: n });
+  res.json({ ok: true });
 }));
 
 // ---- Audit -------------------------------------------------------------------------------------------------

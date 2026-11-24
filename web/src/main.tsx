@@ -38,6 +38,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/admin/users" element={<Users />} />
             <Route path="/admin/audit" element={<Audit />} />
             <Route path="/platform" element={<Platform />} />
+            <Route path="/platform/rules" element={<Rules platform />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

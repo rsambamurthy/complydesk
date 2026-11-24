@@ -72,7 +72,7 @@ await call(`/obligations/${ev.id}`, { method: 'PATCH', body: { status: 'FILED', 
 ok((await call(`/obligations?clientId=${c.id}&bucket=done`)).some((o: any) => o.id === ev.id && o.srn === 'AB1234567'), 'DIR-12 marked filed with SRN');
 
 // Rule override: change DPT-3 date, then revert.
-await call('/admin/rules/AOC4', { method: 'PUT', body: { title: 'Financial statements', active: true, notes: null, effectiveFrom: null, effectiveTo: null, due: { kind: 'AFTER_ANCHOR', anchor: 'AGM', days: 45, fallback: 'AGM_LAST_DATE' }, lateFee: { kind: 'PER_DAY', amount: 100 } } });
+await call('/admin/rules/AOC4', { method: 'PUT', body: { form: 'AOC-4', law: 'Sec 137', applies: { types: ['PRIVATE'] }, title: 'Financial statements', active: true, notes: null, effectiveFrom: null, effectiveTo: null, due: { kind: 'AFTER_ANCHOR', anchor: 'AGM', days: 45, fallback: 'AGM_LAST_DATE' }, lateFee: { kind: 'PER_DAY', amount: 100 } } });
 list = await call(`/obligations?clientId=${c.id}&bucket=all`);
 ok(list.find((o: any) => o.id === aoc4.id).dueDate === '2026-10-25', 'workspace rule override recomputes (45 days)');
 await call('/admin/rules/AOC4', { method: 'DELETE' });

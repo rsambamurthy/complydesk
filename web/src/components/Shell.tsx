@@ -24,7 +24,10 @@ export function Shell() {
       { to: '/clients', label: 'All clients', icon: 'clients', end: true, show: can('clients.view') },
       { to: '/clients/import', label: 'Import from Excel', icon: 'upload', show: can('clients.manage') },
     ]),
-    ...(me.platformAdmin ? keep([{ to: '/platform', label: 'Platform console', icon: 'shield', show: true }]) : []),
+    me.platformAdmin ? group('platform', 'Integrata platform', 'shield', [
+      { to: '/platform', label: 'Firms & sign-up', icon: 'shield', end: true, show: true },
+      { to: '/platform/rules', label: 'Built-in rules', icon: 'rules', show: true },
+    ]) : null,
     group('admin', 'Administration', 'config', [
       { to: '/admin/rules', label: 'Compliance rules', icon: 'rules', show: can('clients.view') },
       { to: '/admin/users', label: 'Users', icon: 'users', show: can('users.manage') },

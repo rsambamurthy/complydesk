@@ -15,6 +15,13 @@
       "when": 1795541916472,
       "tag": "0001_previous_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795545104890,
+      "tag": "0002_icy_epoch",
+      "breakpoints": true
     }
   ]
 }
