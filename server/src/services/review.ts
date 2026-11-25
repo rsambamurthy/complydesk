@@ -14,6 +14,7 @@ import { assertDailyLimit, extractEnabled } from './extract.js';
 import { clientDetail } from './clients.js';
 import { getObligation } from './obligations.js';
 import { isMeeting } from './stages.js';
+import { formPack, hasPack } from './eforms.js';
 
 const { obligations: o, attachments: a, filingChecks: fc, obligationEvents, extractions } = schema;
 
@@ -40,7 +41,14 @@ export async function reviewFor(tenantId: string, obligationId: string) {
   const ctx = await contextFor(tenantId, obligationId);
   const [latest] = await db.select().from(fc).where(and(eq(fc.obligationId, obligationId), eq(fc.tenantId, tenantId))).orderBy(desc(fc.createdAt)).limit(1);
   const files = await db.select({ id: a.id, fileName: a.fileName, contentType: a.contentType }).from(a).where(and(eq(a.tenantId, tenantId), eq(a.entity, 'obligation'), eq(a.entityId, obligationId))).orderBy(desc(a.createdAt));
-  return { records: recordChecks(ctx), latest: latest ?? null, checkable: files.filter((f) => READABLE[f.contentType]), aiEnabled: extractEnabled() };
+  const records = recordChecks(ctx);
+  if (hasPack(ctx.ob.ruleCode)) {
+    const p = (await formPack(tenantId, obligationId)).progress;
+    records.push(p.missing.length
+      ? { level: 'warn', source: 'records', text: `MCA form data: ${p.missing.length} of ${p.total} fields still empty (${p.missing.slice(0, 3).join(', ')}${p.missing.length > 3 ? '…' : ''}).` }
+      : { level: 'ok', source: 'records', text: `MCA form data complete (${p.total} fields).` });
+  }
+  return { records, latest: latest ?? null, checkable: files.filter((f) => READABLE[f.contentType]), aiEnabled: extractEnabled() };
 }
 
 export async function checkDraft(staff: StaffCtx, obligationId: string, attachmentId: string) {

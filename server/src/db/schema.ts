@@ -133,6 +133,8 @@ export const clients = pgTable('clients', {
   paidUpCapital: numeric('paid_up_capital'),
   /** Applicability flags the rules look at: msmeDues (owes MSME suppliers > 45 days), depositsOrLoans (DPT-3). */
   flags: jsonb('flags').$type<Record<string, boolean>>().notNull().default({}),
+  /** Extra company details MCA forms ask for (PAN, phone, website, business activity codes…) — see eforms/forms.ts. */
+  profile: jsonb('profile').$type<Record<string, string>>().notNull().default({}),
   /** Staff member responsible. */
   ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
   /** ACTIVE | ARCHIVED */
@@ -270,6 +272,8 @@ export const obligations = pgTable('obligations', {
   srn: text('srn'),
   assigneeId: text('assignee_id').references(() => users.id, { onDelete: 'set null' }),
   notes: text('notes'),
+  /** Values typed for this filing's MCA form that the records don't hold (turnover, reason for cessation…). */
+  formData: jsonb('form_data').$type<Record<string, string>>().notNull().default({}),
   /** Engine no longer produces it (e.g. a flag changed) and it was never started. */
   stale: boolean('stale').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

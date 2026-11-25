@@ -50,6 +50,13 @@
       "when": 1795617546942,
       "tag": "0006_daily_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795623511081,
+      "tag": "0007_round_mesmero",
+      "breakpoints": true
     }
   ]
 }

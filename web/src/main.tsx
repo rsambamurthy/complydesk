@@ -23,6 +23,7 @@ import { Rules } from './pages/admin/Rules';
 import { Users } from './pages/admin/Users';
 import { Audit } from './pages/admin/Audit';
 import { Settings } from './pages/admin/Settings';
+import { FormPack } from './pages/FormPack';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/meetings/:id" element={<MeetingDetail />} />
+            <Route path="/filings/:id/form" element={<FormPack />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/import" element={<ImportClients />} />
             <Route path="/clients/:id" element={<ClientDetail />} />

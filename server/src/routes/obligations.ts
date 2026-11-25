@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { reviewFor, checkDraft } from '../services/review.js';
+import { formPack, saveInputs, formWorkbook, hasPack } from '../services/eforms.js';
 import { db, schema, h, audit } from '../lib/core.js';
 import { requirePerm, clientScope, assertClientVisible } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
@@ -48,7 +49,7 @@ obligationsRouter.get('/:id', requirePerm('clients.view'), h(async (req, res) =>
   const names = ids.length ? await db.select({ id: schema.users.id, name: schema.users.name }).from(schema.users).where(inArray(schema.users.id, ids)) : [];
   const nameOf = (id: string | null) => names.find((n) => n.id === id)?.name ?? null;
   res.json({ obligation: ob, moves: await movesFor(ob, req.staff!), history: await history(ob.id), settings: settingsOf(req.staff!.tenant),
-    preparedBy: nameOf(ob.preparedById), reviewedBy: nameOf(ob.reviewedById), clientApprovedBy: nameOf(ob.clientApprovedById) });
+    preparedBy: nameOf(ob.preparedById), reviewedBy: nameOf(ob.reviewedById), clientApprovedBy: nameOf(ob.clientApprovedById), formPack: hasPack(ob.ruleCode) });
 }));
 
 /** Reviewer check: firm staff only (not client users). */
@@ -70,6 +71,31 @@ obligationsRouter.post('/:id/review', h(async (req, res) => {
   const out = await checkDraft(req.staff!, ob.id, attachmentId);
   await audit(req, 'filing.check', 'obligation', ob.id, { attachmentId });
   res.json(out);
+}));
+
+/** MCA form data pack: firm staff only. */
+obligationsRouter.get('/:id/form', h(async (req, res) => {
+  reviewer(req);
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  res.json(await formPack(tid(req), ob.id));
+}));
+obligationsRouter.put('/:id/form', requirePerm('compliance.work'), h(async (req, res) => {
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  if (req.staff!.user.clientIds.length) throw new HttpError(403, 'You can’t do this');
+  const out = await saveInputs(tid(req), ob.id, req.body?.values ?? {});
+  await audit(req, 'filing.form', 'obligation', ob.id, req.body?.values);
+  res.json(out);
+}));
+obligationsRouter.get('/:id/form.xlsx', h(async (req, res) => {
+  reviewer(req);
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  const { buffer, fileName } = await formWorkbook(tid(req), ob.id);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+  res.send(buffer);
 }));
 
 obligationsRouter.post('/:id/move', h(async (req, res) => {

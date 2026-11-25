@@ -105,7 +105,7 @@ export function EventModal({ clientId, meta, people, onClose, onSaved }: { clien
 interface Move { action: string; label: string; note: 'required' | 'optional' | null; needsFiling: boolean; danger: boolean; blocked: string | null; override: number | null }
 interface FilingDetail {
   obligation: Obligation & { reviewedAt: string | null; clientApprovedAt: string | null };
-  moves: Move[]; settings: { requireReview: boolean; requireClientApproval: boolean };
+  moves: Move[]; settings: { requireReview: boolean; requireClientApproval: boolean }; formPack: boolean;
   history: { id: string; action: string; fromStage: string | null; toStage: string | null; note: string | null; userName: string | null; at: string }[];
   preparedBy: string | null; reviewedBy: string | null; clientApprovedBy: string | null;
 }
@@ -197,6 +197,12 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
         </div>
       )}
 
+      {!clientUser && (can('compliance.work') || can('compliance.approve')) && data.formPack && ob.stage !== 'NA' && (
+        <div className="card pad" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span><strong>MCA form data</strong><span className="muted small block">Every field of the {ob.form} form, filled from the records — copy into the V3 portal, or download as Excel.</span></span>
+          <span className="grow" /><Link className="btn btn-sm btn-primary" to={`/filings/${o.id}/form`} onClick={onClose}>Open {ob.form} form data</Link>
+        </div>
+      )}
       {!clientUser && (can('compliance.work') || can('compliance.approve')) && ob.stage !== 'NA' && (
         <ReviewCheck key={`rc${filesKey}`} obligationId={o.id} open={['DRAFTED', 'REVIEW', 'READY', 'RESUBMIT'].includes(ob.stage)} />
       )}

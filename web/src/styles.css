@@ -982,3 +982,8 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .doc-pick label > span { flex: 1; min-width: 0; }
 .doc-pick label.on { border-color: var(--brand); background: var(--brand-50); }
 .changes td { padding: 6px 8px; } .changes .was { color: #8a8fa3; text-decoration: line-through; }
+
+@media print {
+  .af-header, .af-side, .head-actions, .btn { display: none !important; }
+  .page { padding: 0 !important; }
+}
