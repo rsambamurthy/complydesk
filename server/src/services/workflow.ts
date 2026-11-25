@@ -10,6 +10,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema, HttpError } from '../lib/core.js';
+import { issuesToFix } from './review.js';
 import { settingsOf } from '../lib/settings.js';
 import { isMeeting, STAGES, STAGE_STATUS, statusToStage, type Stage } from './stages.js';
 import type { Obligation } from '../db/schema.js';
@@ -83,12 +84,21 @@ export async function settingsFor(tenantId: string) {
 }
 
 /** The moves this person can make now (for the screen), with the reason when one is blocked. */
+/** Approval and filing wait until the pre-filing check has nothing to fix (firm setting, on by default). */
+const GATED = ['review_ok', 'filed'];
+async function checkGate(ob: Obligation, staff: StaffCtx) {
+  if (!settingsOf(staff.tenant).blockOnCheckErrors) return null;
+  const n = await issuesToFix(staff.tenant.id, ob.id);
+  return n ? `Fix the ${n === 1 ? 'issue' : `${n} issues`} in the pre-filing check first` : null;
+}
+
 export async function movesFor(ob: Obligation, staff: StaffCtx) {
   if (isMeeting(ob.form)) return [];
   const s = settingsOf(staff.tenant);
+  const gate = MOVES.some((m) => GATED.includes(m.action) && m.from.includes(ob.stage as Stage)) ? await checkGate(ob, staff) : null;
   return MOVES.filter((m) => m.from.includes(ob.stage as Stage))
     .filter((m) => !(m.action === 'return' && ob.stage === 'READY' && !s.requireReview))
-    .map((m) => ({ action: m.action, label: m.action === 'client_ok' && !staff.user.clientIds.length ? 'Record client’s approval' : m.label, note: m.note ?? null, needsFiling: !!m.needsFiling, danger: !!m.danger, blocked: allowed(m, ob, staff) }))
+    .map((m) => ({ action: m.action, label: m.action === 'client_ok' && !staff.user.clientIds.length ? 'Record client’s approval' : m.label, note: m.note ?? null, needsFiling: !!m.needsFiling, danger: !!m.danger, blocked: allowed(m, ob, staff) ?? (GATED.includes(m.action) ? gate : null) }))
     .filter((m) => !(staff.user.clientIds.length && m.blocked));
 }
 
@@ -103,12 +113,12 @@ export async function move(ob: Obligation, staff: StaffCtx, input: z.output<type
   const m = MOVES.find((x) => x.action === input.action);
   if (!m) throw new HttpError(400, 'Unknown step');
   if (!m.from.includes(ob.stage as Stage)) throw new HttpError(409, 'This filing has moved on — refresh to see where it is now');
-  const why = allowed(m, ob, staff);
+  const why = allowed(m, ob, staff) ?? (GATED.includes(m.action) ? await checkGate(ob, staff) : null);
   if (why) throw new HttpError(403, why);
   if (m.note === 'required' && !input.note) throw new HttpError(400, 'Add a note saying why', { note: 'Required' });
   if (m.action === 'client_ok' && !staff.user.clientIds.length && !input.note) throw new HttpError(400, 'Note how the client approved (e.g. “by email on 24 Nov”)', { note: 'Required' });
   if (m.needsFiling) {
-    if (!input.srn || !/^[A-Z]\d{7,9}$/.test(input.srn)) throw new HttpError(400, 'Enter the SRN', { srn: 'SRN looks like F12345678' });
+    if (!input.srn || !/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{9}$/.test(input.srn)) throw new HttpError(400, 'Enter the SRN', { srn: 'An SRN has 9 letters and digits, e.g. AB1234567' });
     if (!input.filedOn) throw new HttpError(400, 'Enter the date filed', { filedOn: 'Required' });
   }
   const s = settingsOf(staff.tenant);

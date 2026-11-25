@@ -70,3 +70,9 @@ export async function checkDraft(staff: StaffCtx, obligationId: string, attachme
   await db.insert(obligationEvents).values({ obligationId, action: 'checked', note: `${file.fileName}: ${t.errors} to fix, ${t.warnings} to look at`, userId: staff.user.id, userName: staff.user.name });
   return saved;
 }
+
+/** Things to fix now: record checks plus the latest draft check. Used to hold back approval and filing. */
+export async function issuesToFix(tenantId: string, obligationId: string) {
+  const r = await reviewFor(tenantId, obligationId);
+  return tally([...r.records, ...((r.latest?.findings ?? []) as Finding[])]).errors;
+}

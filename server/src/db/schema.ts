@@ -16,6 +16,8 @@ export interface TenantSettings {
   reminderDays?: number[]; reminderOverdue?: boolean; reminderClientUsers?: boolean;
   /** Filing workflow: partner review before filing (maker-checker) and the client's approval. */
   requireReview?: boolean; requireClientApproval?: boolean;
+  /** No approval or filing while the pre-filing check has things to fix. */
+  blockOnCheckErrors?: boolean;
 }
 
 export const tenants = pgTable('tenants', {

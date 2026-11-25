@@ -61,7 +61,7 @@ function MeetingItemModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?:
     ] },
     { key: 'filedOn', label: meeting ? 'Held on' : 'Filed on', type: 'date', show: (v) => v.status === 'FILED', required: true,
       help: o.ruleCode === 'AGM' ? 'AOC-4, MGT-7 and ADT-1 due dates follow this date.' : meeting ? 'The first meeting of the year sets the MBP-1 / DIR-8 date.' : undefined },
-    { key: 'srn', label: 'SRN', show: (v) => v.status === 'FILED' && !meeting, placeholder: 'e.g. F12345678' },
+    { key: 'srn', label: 'SRN', show: (v) => v.status === 'FILED' && !meeting, placeholder: 'e.g. AB1234567' },
     { key: 'assigneeId', label: 'Assigned to', type: 'select', options: (meta?.staff ?? []).map((s) => ({ value: s.id, label: s.name })) },
     ...(o.source === 'MANUAL' ? [{ key: 'dueDate', label: 'Due date', type: 'date' as const, help: 'Event-based: change it if a different period applies (e.g. 15 days for a private placement).' }] : []),
     { key: 'notes', label: 'Notes', type: 'textarea', wide: true },
@@ -185,7 +185,7 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
               <strong className="small">{pending.label}</strong>
               {pending.needsFiling && docs?.enabled && meta && <span className="small">Have the challan? <a href="#" onClick={(e) => { e.preventDefault(); setChallan(true); }}>Read the SRN and date from it</a></span>}
               {pending.needsFiling && <div className="field-grid">
-                <div className="field"><label htmlFor="srn">SRN</label><input id="srn" className="mono" value={srn} onChange={(e) => setSrn(e.target.value.toUpperCase())} placeholder="F12345678" /></div>
+                <div className="field"><label htmlFor="srn">SRN</label><input id="srn" className="mono" value={srn} onChange={(e) => setSrn(e.target.value.toUpperCase())} placeholder="AB1234567" /></div>
                 <div className="field"><label htmlFor="fo">Filed on</label><input id="fo" type="date" value={filedOn} onChange={(e) => setFiledOn(e.target.value)} /></div>
               </div>}
               <div className="field"><label htmlFor="nt">{pending.action === 'client_ok' && !clientUser ? 'How did the client approve? (required)' : pending.note === 'required' ? 'Note (required)' : 'Note'}</label>

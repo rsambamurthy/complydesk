@@ -48,4 +48,20 @@ ok(true, 'a file from another filing can’t be checked here');
 const meeting = (await admin.call(`/obligations?clientId=${kaveri.id}&bucket=all`)).find((o: any) => o.form === 'Board meeting');
 await exec.call(`/obligations/${meeting.id}/review`, { expect: 400 });
 ok(true, 'meetings aren’t checked here');
+
+// Approval waits for the things to fix (setting on by default)
+ok((await admin.call('/admin/settings')).blockOnCheckErrors === true, 'holding back approval is on by default');
+await exec.call(`/obligations/${mgt7.id}/move`, { body: { action: 'drafted' } });
+await exec.call(`/obligations/${mgt7.id}/move`, { body: { action: 'submit' } });
+const dd = await admin.call(`/obligations/${mgt7.id}`);
+const appr = dd.moves.find((m: any) => m.action === 'review_ok');
+ok(/Fix the 2 issues in the pre-filing check first/.test(appr.blocked ?? ''), 'approve button says why it is held back');
+await admin.call(`/obligations/${mgt7.id}/move`, { body: { action: 'review_ok' }, expect: 403 });
+ok(true, 'approval refused while there are things to fix');
+ok(dd.moves.find((m: any) => m.action === 'return' && !m.blocked), 'returning for changes is still allowed');
+await admin.call('/admin/settings', { method: 'PUT', body: { blockOnCheckErrors: false } });
+await admin.call(`/obligations/${mgt7.id}/move`, { body: { action: 'review_ok' } });
+ok(true, 'with the setting off, the reviewer can approve');
+await exec.call(`/obligations/${mgt7.id}/move`, { body: { action: 'filed', srn: 'AB1234567', filedOn: '2026-11-25' } });
+ok(true, 'a V3 SRN (2 letters + 7 digits) is accepted');
 console.log('\nAll reviewer-check checks passed.');

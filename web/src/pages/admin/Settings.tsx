@@ -7,7 +7,7 @@ import { Fields, useRecordForm } from '../../components/RecordForm';
 import { useSession } from '../../lib/session';
 import { fmtDate } from '../../lib/format';
 
-interface S { reminderDays: number[]; reminderOverdue: boolean; reminderClientUsers: boolean; requireReview: boolean; requireClientApproval: boolean }
+interface S { reminderDays: number[]; reminderOverdue: boolean; reminderClientUsers: boolean; requireReview: boolean; requireClientApproval: boolean; blockOnCheckErrors: boolean }
 interface Item { group: string; text: string; date: string; link: string }
 const GROUP: Record<string, string> = { overdue: 'Overdue', review: 'Waiting for your review', approval: 'Waiting for your approval', due: 'Coming up', minutes: 'Minutes to sign', dsc: 'DSC expiring' };
 
@@ -36,6 +36,7 @@ function SettingsForm({ s, edit, onSaved }: { s: S; edit: boolean; onSaved: () =
         <Fields form={form} fields={[
           { key: 'requireReview', label: 'A reviewer checks every filing before it is filed (maker-checker)', type: 'checkbox', wide: true, help: 'Reviewers are Partners and Firm Admins; whoever drafted a filing can’t approve it.' },
           { key: 'requireClientApproval', label: 'The client approves every filing before it is filed', type: 'checkbox', wide: true, help: 'The client’s Client Admin approves from their login — or your team records an approval received by email.' },
+          { key: 'blockOnCheckErrors', label: 'No approval or filing while the pre-filing check has things to fix', type: 'checkbox', wide: true, help: 'Things to fix (red) must be cleared first: correct the records or the draft and check again. Things to look at (amber) never block.' },
         ]} />
         <h3 style={{ margin: '10px 0 0' }}>Daily reminder email (08:30)</h3>
         <Fields form={form} fields={[
@@ -49,7 +50,7 @@ function SettingsForm({ s, edit, onSaved }: { s: S; edit: boolean; onSaved: () =
       {edit && <div><button className="btn btn-primary" disabled={form.busy} onClick={() => form.submit(async (v) => {
         const days = String(v.reminderDays ?? '').split(/[,\s]+/).filter(Boolean).map(Number);
         if (days.some((d) => !Number.isInteger(d) || d < 0 || d > 90)) throw new Error('Days must be whole numbers from 0 to 90');
-        await api('/admin/settings', { method: 'PUT', body: { reminderDays: days, reminderOverdue: !!v.reminderOverdue, reminderClientUsers: !!v.reminderClientUsers, requireReview: !!v.requireReview, requireClientApproval: !!v.requireClientApproval } });
+        await api('/admin/settings', { method: 'PUT', body: { reminderDays: days, reminderOverdue: !!v.reminderOverdue, reminderClientUsers: !!v.reminderClientUsers, requireReview: !!v.requireReview, requireClientApproval: !!v.requireClientApproval, blockOnCheckErrors: !!v.blockOnCheckErrors } });
         setOk(true); onSaved();
       })}>Save settings</button></div>}
     </section>
