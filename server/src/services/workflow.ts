@@ -86,11 +86,18 @@ export async function settingsFor(tenantId: string) {
 /** The moves this person can make now (for the screen), with the reason when one is blocked. */
 /** Approval and filing wait until the pre-filing check has nothing to fix (firm setting, on by default). */
 const GATED = ['review_ok', 'filed'];
-async function checkGate(ob: Obligation, staff: StaffCtx) {
+async function checkGate(ob: Obligation, staff: StaffCtx): Promise<{ why: string; n: number } | null> {
   if (!settingsOf(staff.tenant).blockOnCheckErrors) return null;
+  // A partner's "approve anyway" holds until the filing is sent back.
+  const evs = await db.select({ action: ev.action }).from(ev).where(eq(ev.obligationId, ob.id)).orderBy(asc(ev.at));
+  const lastOverride = evs.map((e) => e.action).lastIndexOf('override');
+  const lastBack = Math.max(...['return', 'client_return', 'resubmit', 'reopen'].map((a) => evs.map((e) => e.action).lastIndexOf(a)));
+  if (lastOverride >= 0 && lastOverride > lastBack) return null;
   const n = await issuesToFix(staff.tenant.id, ob.id);
-  return n ? `Fix the ${n === 1 ? 'issue' : `${n} issues`} in the pre-filing check first` : null;
+  return n ? { n, why: `Fix the ${n === 1 ? 'issue' : `${n} issues`} in the pre-filing check first` } : null;
 }
+/** Partners / firm admins may approve over the check, with a reason. */
+const canOverride = (staff: StaffCtx) => staff.permissions.has('compliance.approve') && !staff.user.clientIds.length;
 
 export async function movesFor(ob: Obligation, staff: StaffCtx) {
   if (isMeeting(ob.form)) return [];
@@ -98,7 +105,8 @@ export async function movesFor(ob: Obligation, staff: StaffCtx) {
   const gate = MOVES.some((m) => GATED.includes(m.action) && m.from.includes(ob.stage as Stage)) ? await checkGate(ob, staff) : null;
   return MOVES.filter((m) => m.from.includes(ob.stage as Stage))
     .filter((m) => !(m.action === 'return' && ob.stage === 'READY' && !s.requireReview))
-    .map((m) => ({ action: m.action, label: m.action === 'client_ok' && !staff.user.clientIds.length ? 'Record client’s approval' : m.label, note: m.note ?? null, needsFiling: !!m.needsFiling, danger: !!m.danger, blocked: allowed(m, ob, staff) ?? (GATED.includes(m.action) ? gate : null) }))
+    .map((m) => ({ action: m.action, label: m.action === 'client_ok' && !staff.user.clientIds.length ? 'Record client’s approval' : m.label, note: m.note ?? null, needsFiling: !!m.needsFiling, danger: !!m.danger, blocked: allowed(m, ob, staff) ?? (GATED.includes(m.action) && gate && !canOverride(staff) ? gate.why : null),
+      override: !allowed(m, ob, staff) && GATED.includes(m.action) && gate && canOverride(staff) ? gate.n : null }))
     .filter((m) => !(staff.user.clientIds.length && m.blocked));
 }
 
@@ -106,6 +114,8 @@ export const moveInput = z.object({
   action: z.string(), note: z.string().trim().max(2000).nullish().transform((v) => v || null),
   srn: z.string().trim().toUpperCase().nullish().transform((v) => v || null),
   filedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  /** A partner approving over the pre-filing check (needs a note). */
+  override: z.boolean().optional(),
 });
 
 export async function move(ob: Obligation, staff: StaffCtx, input: z.output<typeof moveInput>) {
@@ -113,8 +123,13 @@ export async function move(ob: Obligation, staff: StaffCtx, input: z.output<type
   const m = MOVES.find((x) => x.action === input.action);
   if (!m) throw new HttpError(400, 'Unknown step');
   if (!m.from.includes(ob.stage as Stage)) throw new HttpError(409, 'This filing has moved on — refresh to see where it is now');
-  const why = allowed(m, ob, staff) ?? (GATED.includes(m.action) ? await checkGate(ob, staff) : null);
+  const why = allowed(m, ob, staff);
   if (why) throw new HttpError(403, why);
+  const gate = GATED.includes(m.action) ? await checkGate(ob, staff) : null;
+  if (gate) {
+    if (!canOverride(staff)) throw new HttpError(403, gate.why);
+    if (!input.override || !input.note) throw new HttpError(400, `There ${gate.n === 1 ? 'is 1 issue' : `are ${gate.n} issues`} to fix — say why you are approving anyway`, { note: 'Required' });
+  }
   if (m.note === 'required' && !input.note) throw new HttpError(400, 'Add a note saying why', { note: 'Required' });
   if (m.action === 'client_ok' && !staff.user.clientIds.length && !input.note) throw new HttpError(400, 'Note how the client approved (e.g. “by email on 24 Nov”)', { note: 'Required' });
   if (m.needsFiling) {
@@ -134,6 +149,7 @@ export async function move(ob: Obligation, staff: StaffCtx, input: z.output<type
   // Guard against two people moving the same filing at once.
   const [next] = await db.update(o).set(set).where(and(eq(o.id, ob.id), eq(o.stage, ob.stage))).returning();
   if (!next) throw new HttpError(409, 'Someone else just moved this filing — refresh');
+  if (gate) await db.insert(ev).values({ obligationId: ob.id, action: 'override', fromStage: ob.stage, toStage: ob.stage, note: `Approved despite ${gate.n} issue${gate.n === 1 ? '' : 's'} to fix: ${input.note}`, userId: staff.user.id, userName: staff.user.name });
   await db.insert(ev).values({ obligationId: ob.id, action: m.action, fromStage: ob.stage, toStage: to, note: input.note ?? (m.action === 'filed' ? `SRN ${input.srn}` : null), userId: staff.user.id, userName: staff.user.name });
   return next;
 }

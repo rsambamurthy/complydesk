@@ -36,7 +36,7 @@ function SettingsForm({ s, edit, onSaved }: { s: S; edit: boolean; onSaved: () =
         <Fields form={form} fields={[
           { key: 'requireReview', label: 'A reviewer checks every filing before it is filed (maker-checker)', type: 'checkbox', wide: true, help: 'Reviewers are Partners and Firm Admins; whoever drafted a filing can’t approve it.' },
           { key: 'requireClientApproval', label: 'The client approves every filing before it is filed', type: 'checkbox', wide: true, help: 'The client’s Client Admin approves from their login — or your team records an approval received by email.' },
-          { key: 'blockOnCheckErrors', label: 'No approval or filing while the pre-filing check has things to fix', type: 'checkbox', wide: true, help: 'Things to fix (red) must be cleared first: correct the records or the draft and check again. Things to look at (amber) never block.' },
+          { key: 'blockOnCheckErrors', label: 'No approval or filing while the pre-filing check has things to fix', type: 'checkbox', wide: true, help: 'Things to fix (red) must be cleared first: correct the records or the draft and check again. Partners and firm admins can still approve with a written reason, kept in the filing’s history. Things to look at (amber) never block.' },
         ]} />
         <h3 style={{ margin: '10px 0 0' }}>Daily reminder email (08:30)</h3>
         <Fields form={form} fields={[

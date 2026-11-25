@@ -102,7 +102,7 @@ export function EventModal({ clientId, meta, people, onClose, onSaved }: { clien
 }
 
 // ---- Filing workflow dialog -----------------------------------------------------------------------------------
-interface Move { action: string; label: string; note: 'required' | 'optional' | null; needsFiling: boolean; danger: boolean; blocked: string | null }
+interface Move { action: string; label: string; note: 'required' | 'optional' | null; needsFiling: boolean; danger: boolean; blocked: string | null; override: number | null }
 interface FilingDetail {
   obligation: Obligation & { reviewedAt: string | null; clientApprovedAt: string | null };
   moves: Move[]; settings: { requireReview: boolean; requireClientApproval: boolean };
@@ -110,7 +110,7 @@ interface FilingDetail {
   preparedBy: string | null; reviewedBy: string | null; clientApprovedBy: string | null;
 }
 const FLOW = (s: FilingDetail['settings']) => ['TODO', 'DATA', 'DRAFTED', ...(s.requireReview ? ['REVIEW'] : []), ...(s.requireClientApproval ? ['CLIENT'] : []), 'READY', 'FILED', 'APPROVED'];
-const ACTION_WORD: Record<string, string> = { checked: 'Draft checked', start: 'Started', drafted: 'Drafted', submit: 'Sent for review', review_ok: 'Reviewed and approved', return: 'Returned for changes', client_ok: 'Client approved', client_return: 'Client sent back', filed: 'Filed on MCA', approved: 'Approved by MCA', resubmit: 'Resubmission asked', not_applicable: 'Marked not applicable', reopen: 'Reopened', status: 'Status changed' };
+const ACTION_WORD: Record<string, string> = { checked: 'Draft checked', override: 'Approved over the pre-filing check', start: 'Started', drafted: 'Drafted', submit: 'Sent for review', review_ok: 'Reviewed and approved', return: 'Returned for changes', client_ok: 'Client approved', client_return: 'Client sent back', filed: 'Filed on MCA', approved: 'Approved by MCA', resubmit: 'Resubmission asked', not_applicable: 'Marked not applicable', reopen: 'Reopened', status: 'Status changed' };
 
 function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta; onClose: () => void; onSaved: () => void }) {
   const { data, error, reload } = useLoad<FilingDetail>(`/obligations/${o.id}`);
@@ -133,10 +133,10 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
   const flow = FLOW(data.settings);
   const at = ob.stage === 'RESUBMIT' ? flow.indexOf('DRAFTED') : flow.indexOf(ob.stage);
   const go = async (m: Move) => {
-    if ((m.note === 'required' || m.needsFiling || (m.action === 'client_ok' && !clientUser)) && pending?.action !== m.action) { setPending(m); setNote(''); setErr(undefined); return; }
+    if ((m.note === 'required' || m.needsFiling || m.override || (m.action === 'client_ok' && !clientUser)) && pending?.action !== m.action) { setPending(m); setNote(''); setErr(undefined); return; }
     setBusy(true); setErr(undefined);
     try {
-      await api(`/obligations/${o.id}/move`, { body: { action: m.action, note: note || null, srn: srn || null, filedOn: m.needsFiling ? filedOn : null } });
+      await api(`/obligations/${o.id}/move`, { body: { action: m.action, note: note || null, srn: srn || null, filedOn: m.needsFiling ? filedOn : null, override: !!m.override } });
       setPending(undefined); setNote(''); setSrn(''); reload(); onSaved();
     } catch (e: any) { setErr({ msg: e.message, details: e.details }); } finally { setBusy(false); }
   };
@@ -180,6 +180,7 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
             ))}
           </div>
           {data.moves.filter((m) => m.blocked).map((m) => <span key={m.action} className="muted small">{m.label}: {m.blocked}</span>)}
+          {data.moves.filter((m) => m.override && pending?.action !== m.action).map((m) => <span key={`o${m.action}`} className="warn-text small">The pre-filing check has {m.override} {m.override === 1 ? 'issue' : 'issues'} to fix — you can still {m.action === 'filed' ? 'file' : 'approve'}, giving a reason.</span>)}
           {pending && (
             <div className="card pad stack" style={{ gap: 8, background: 'var(--surface-2, #f6f7fb)' }}>
               <strong className="small">{pending.label}</strong>
@@ -188,7 +189,7 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
                 <div className="field"><label htmlFor="srn">SRN</label><input id="srn" className="mono" value={srn} onChange={(e) => setSrn(e.target.value.toUpperCase())} placeholder="AB1234567" /></div>
                 <div className="field"><label htmlFor="fo">Filed on</label><input id="fo" type="date" value={filedOn} onChange={(e) => setFiledOn(e.target.value)} /></div>
               </div>}
-              <div className="field"><label htmlFor="nt">{pending.action === 'client_ok' && !clientUser ? 'How did the client approve? (required)' : pending.note === 'required' ? 'Note (required)' : 'Note'}</label>
+              <div className="field"><label htmlFor="nt">{pending.override ? `Why ${pending.action === 'filed' ? 'file' : 'approve'} despite ${pending.override} ${pending.override === 1 ? 'issue' : 'issues'} to fix? (required — kept in the history)` : pending.action === 'client_ok' && !clientUser ? 'How did the client approve? (required)' : pending.note === 'required' ? 'Note (required)' : 'Note'}</label>
                 <textarea id="nt" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={pending.action === 'client_ok' ? 'e.g. Approved by Ms. Rao by email on 24 Nov' : pending.action === 'return' || pending.action === 'client_return' ? 'What needs changing?' : ''} /></div>
               <div className="btn-row"><button className="btn btn-primary btn-sm" disabled={busy} onClick={() => go(pending)}>Confirm</button><button className="btn btn-secondary btn-sm" onClick={() => setPending(undefined)}>Cancel</button></div>
             </div>
