@@ -1,7 +1,7 @@
 /** Administration: users, roles, compliance rules, audit log. */
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema, h, audit, HttpError, notFound } from '../lib/core.js';
 import { requirePerm } from '../auth/session.js';
@@ -14,8 +14,10 @@ const tid = (req: any) => req.staff.tenant.id as string;
 
 // ---- Users -------------------------------------------------------------------------------------------------
 adminRouter.get('/users', requirePerm('users.manage'), h(async (req, res) => {
+  // ?clientId= → only the users with access to that client (the client's Users tab).
+  const clientId = typeof req.query.clientId === 'string' ? req.query.clientId : null;
   const list = await db.select({ id: users.id, name: users.name, email: users.email, status: users.status, clientIds: users.clientIds, lastLoginAt: users.lastLoginAt })
-    .from(users).where(eq(users.tenantId, tid(req))).orderBy(users.name);
+    .from(users).where(and(eq(users.tenantId, tid(req)), clientId ? sql`${users.clientIds} @> ${JSON.stringify([clientId])}::jsonb` : undefined)).orderBy(users.name);
   const links = await db.select({ userId: userRoles.userId, roleId: userRoles.roleId }).from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(eq(roles.tenantId, tid(req)));
   res.json(list.map((u) => ({ ...u, roleIds: links.filter((l) => l.userId === u.id).map((l) => l.roleId) })));
 }));
@@ -62,6 +64,22 @@ adminRouter.patch('/users/:id', requirePerm('users.manage'), h(async (req, res) 
   await db.insert(userRoles).values(b.roleIds.map((roleId) => ({ userId: u.id, roleId })));
   if (b.status === 'DISABLED') await db.delete(schema.sessions).where(eq(schema.sessions.userId, u.id));
   await audit(req, 'user.update', 'user', u.id, { ...req.body, password: undefined });
+  res.json({ ok: true });
+}));
+
+/** Give or take away one client company from a client user (used from the client's Users tab). */
+adminRouter.post('/users/:id/client-access', requirePerm('users.manage'), h(async (req, res) => {
+  const b = parse(z.object({ clientId: z.string(), grant: z.boolean() }), req.body);
+  const [u] = await db.select().from(users).where(and(eq(users.id, req.params.id), eq(users.tenantId, tid(req))));
+  if (!u) throw notFound('User not found');
+  await checkRefs(tid(req), [], [b.clientId]);
+  const next = b.grant ? [...new Set([...u.clientIds, b.clientId])] : u.clientIds.filter((c) => c !== b.clientId);
+  if (!next.length && !b.grant) {
+    const rs = await db.select({ key: roles.key }).from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(eq(userRoles.userId, u.id));
+    if (rs.some((r) => r.key.startsWith('CLIENT_'))) throw new HttpError(400, 'This is the user’s only company. Disable the user instead (Administration → Users).');
+  }
+  await db.update(users).set({ clientIds: next }).where(eq(users.id, u.id));
+  await audit(req, b.grant ? 'user.client.grant' : 'user.client.revoke', 'user', u.id, b);
   res.json({ ok: true });
 }));
 

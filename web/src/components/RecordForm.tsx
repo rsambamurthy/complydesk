@@ -8,7 +8,9 @@ import { Alert, Modal } from './ui';
 
 export type FieldDef = {
   key: string; label: string; help?: string; wide?: boolean; required?: boolean; placeholder?: string;
-  type?: 'text' | 'date' | 'number' | 'email' | 'password' | 'textarea' | 'select' | 'checkbox' | 'checks';
+  type?: 'text' | 'date' | 'number' | 'email' | 'password' | 'textarea' | 'select' | 'checkbox' | 'checks' | 'custom';
+  /** For type 'custom': draws the input (e.g. a search picker). */
+  render?: (value: any, set: (v: any) => void) => import('react').ReactNode;
   options?: { value: string; label: string }[];
   /** Hide the field depending on the other values. */
   show?: (v: Record<string, any>) => boolean;
@@ -43,6 +45,14 @@ export function Fields({ fields, form }: { fields: FieldDef[]; form: ReturnType<
             <input type="checkbox" checked={!!v} onChange={(e) => set(f.key, e.target.checked)} />
             <span><strong>{f.label}</strong>{f.help && <span className="muted small block">{f.help}</span>}</span>
           </label>
+        );
+        if (f.type === 'custom') return (
+          <div key={f.key} className={`field ${f.wide ? 'field-wide' : ''} ${err ? 'has-error' : ''}`}>
+            <label>{f.label}{f.required && <span className="req"> *</span>}</label>
+            {f.render!(v, (x) => set(f.key, x))}
+            {f.help && !err && <span className="field-help">{f.help}</span>}
+            {err && <span className="field-error">{err}</span>}
+          </div>
         );
         if (f.type === 'checks') return (
           <fieldset key={f.key} className="field field-wide" style={{ border: 0, padding: 0, margin: 0 }}>

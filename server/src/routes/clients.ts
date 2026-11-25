@@ -26,6 +26,19 @@ clientsRouter.get('/meta', view, h(async (req, res) => {
   });
 }));
 
+/** Light search for pickers: name or CIN, at most 20 (or the given ids, to show names of what is already picked). */
+clientsRouter.get('/lookup', view, h(async (req, res) => {
+  const q = String(req.query.q ?? '').trim();
+  const ids = String(req.query.ids ?? '').split(',').filter(Boolean).slice(0, 500);
+  const scope = clientScope(req);
+  const rows = await db.select({ id: clients.id, name: clients.name, cin: clients.cin }).from(clients)
+    .where(and(eq(clients.tenantId, tid(req)), eq(clients.status, 'ACTIVE'),
+      ids.length ? inArray(clients.id, ids) : q ? or(ilike(clients.name, `%${q}%`), ilike(clients.cin, `%${q}%`)) : undefined,
+      scope ? inArray(clients.id, scope.length ? scope : ['-']) : undefined))
+    .orderBy(asc(clients.name)).limit(ids.length ? 500 : Math.min(Number(req.query.limit) || 20, 50));
+  res.json(rows);
+}));
+
 clientsRouter.get('/', view, h(async (req, res) => {
   const q = String(req.query.q ?? '').trim();
   const scope = clientScope(req);

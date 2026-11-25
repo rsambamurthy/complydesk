@@ -10,10 +10,11 @@ import { auditorFields, clientFields, clientToForm, formToClient, personFields, 
 import { EventModal, ObligationTable } from '../components/Obligations';
 import { TabStrip } from '../components/TabStrip';
 import { useSession } from '../lib/session';
+import { ClientUsers } from '../components/ClientUsers';
 
 interface Detail { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[]; summary: Summary; rules: { code: string; form: string; title: string; applies: boolean }[] }
 
-const TABS = ['Compliance', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details'] as const;
+const TABS = ['Compliance', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details', 'Client users'] as const;
 
 export function ClientDetail() {
   const { id } = useParams();
@@ -42,7 +43,7 @@ export function ClientDetail() {
         <div className="card tile"><span className="tile-n">{num(data.shareholders.reduce((s, x) => s + x.shares, 0))}</span><span className="tile-l">Shares held ({data.shareholders.length} holders)</span></div>
       </div>
       <section className="card">
-        <TabStrip>{TABS.map((t) => <button key={t} role="tab" className={tab === t ? 'active' : ''} aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}</TabStrip>
+        <TabStrip>{TABS.filter((t) => t !== 'Client users' || can('users.manage')).map((t) => <button key={t} role="tab" className={tab === t ? 'active' : ''} aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}</TabStrip>
         <div className="tab-panel">
           {tab === 'Compliance' && <ComplianceTab d={data} meta={meta} reload={reload} />}
           {tab === 'Directors & KMP' && (
@@ -66,6 +67,7 @@ export function ClientDetail() {
                 { label: 'Term', cell: (a) => (a.termFromFy && a.termToFy ? `${fyLabel(a.termFromFy)} to ${fyLabel(a.termToFy)}` : '—') },
               ]} />
           )}
+          {tab === 'Client users' && <ClientUsers clientId={c.id} clientName={c.name} />}
           {tab === 'Details' && (
             <dl className="kv pad">
               <dt>Registered office</dt><dd>{c.registeredOffice ?? '—'}</dd>

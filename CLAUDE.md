@@ -15,6 +15,7 @@ Build once, use everywhere. Before writing a helper, component or rule, look for
 - **Field rules**: `server/src/lib/validators.ts` — screens and import share them.
 - **Web**: `AppFrame`/`NavIcon`/`TabStrip`/`ExcelImport`/styles copied from VendorGate; one `RecordModal` form for every record (`components/RecordForm.tsx`); field lists in `components/ClientForms.tsx`; one `ObligationTable` / `ObligationModal` / `EventModal` (`components/Obligations.tsx`) for dashboard, calendar and client tab; labels in `lib/format.ts`; product name only in `components/Brand.tsx`.
 
+- **Picking clients**: `components/ClientPicker.tsx` (type-to-search by name/CIN over `/clients/lookup`, chips) — use it wherever companies are chosen, never a full list. Client users are managed from the client's *Client users* tab (`components/ClientUsers.tsx`) or Administration → Users.
 - **Platform / sign-up / trial**: `services/platform.ts` — `signUp`, `accessState` (TRIAL / ACTIVE / TRIAL_ENDED / PAYMENT_DUE / SUSPENDED / PENDING_APPROVAL), `assertClientCapacity`, platform settings (approval switch, trial days, trial client limit), console actions. Read-only enforcement in `requireWritable` (auth/session.ts). Platform admins = emails in `PLATFORM_ADMINS`. Email via `lib/mailer.ts` (SMTP_* env; logs when unset).
 
 ## Commands

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useLoad } from '../../lib/hooks';
-import type { Client } from '../../lib/types';
+import { ClientPicker } from '../../components/ClientPicker';
 import { fmtDateTime } from '../../lib/format';
 import { Alert, Spinner } from '../../components/ui';
 import { RecordModal, type FieldDef } from '../../components/RecordForm';
@@ -12,10 +12,9 @@ interface Role { id: string; key: string; name: string; description: string | nu
 export function Users() {
   const users = useLoad<U[]>('/admin/users');
   const roles = useLoad<Role[]>('/admin/roles');
-  const clients = useLoad<Client[]>('/clients');
   const [open, setOpen] = useState<U | 'new'>();
   if (users.error) return <div className="page"><Alert kind="error">{users.error}</Alert></div>;
-  if (!users.data || !roles.data || !clients.data) return <Spinner />;
+  if (!users.data || !roles.data) return <Spinner />;
   const roleName = (id: string) => roles.data!.find((r) => r.id === id)?.name ?? '';
   const clientRoleIds = roles.data.filter((r) => r.key.startsWith('CLIENT_')).map((r) => r.id);
   const fields: FieldDef[] = [
@@ -24,8 +23,9 @@ export function Users() {
     { key: 'password', label: open === 'new' ? 'First password' : 'New password', type: 'password', help: open === 'new' ? 'At least 10 characters. Share it with the user securely.' : 'Leave empty to keep the current one.' },
     { key: 'status', label: 'Status', type: 'select', required: true, options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'DISABLED', label: 'Disabled' }] },
     { key: 'roleIds', label: 'Roles', type: 'checks', options: roles.data.map((r) => ({ value: r.id, label: `${r.name} — ${r.description ?? ''}` })) },
-    { key: 'clientIds', label: 'Client companies (for client users)', type: 'checks', show: (v) => (v.roleIds ?? []).some((id: string) => clientRoleIds.includes(id)),
-      options: clients.data.map((c) => ({ value: c.id, label: c.name })) },
+    { key: 'clientIds', label: 'Client companies this user belongs to', type: 'custom', wide: true, show: (v) => (v.roleIds ?? []).some((id: string) => clientRoleIds.includes(id)),
+      help: 'Search by name or CIN. A client user sees only these companies.',
+      render: (v, set) => <ClientPicker value={v ?? []} onChange={set} /> },
   ];
   return (
     <div className="page">
