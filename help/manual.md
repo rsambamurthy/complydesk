@@ -21,7 +21,7 @@ What it does for a firm:
 | Role                     | Who                             | Can                                                                                                              |
 |--------------------------|---------------------------------|------------------------------------------------------------------------------------------------------------------|
 | Firm Admin               | The firm's owner / lead CS      | Everything in the workspace: settings, users, rules, clients, filings, approvals                                 |
-| Partner / Reviewer       | Senior CS who signs off         | Work on clients and filings; approve filings prepared by others; approve over the pre-filing check with a reason |
+| Partner / Reviewer       | Senior CS who signs off         | Work on clients and filings; approve filings prepared by others; approve over the pre-filing check with a reason; billing |
 | CS Executive             | Team member                     | Keep client records; prepare filings; read documents; use the MCA form filler                                    |
 | Client Admin             | The client company's own person | See their company's calendar; approve filings for filing                                                         |
 | Client Viewer            | The client company's own person | See their company's calendar (read-only)                                                                         |
@@ -369,7 +369,29 @@ Fill a form:
 
 A connection code can only read form data of the clients you can see. Disconnect a browser on the MCA form filler page when you no longer use it.
 
-## 10. Reminders and daily emails
+## 10. Billing
+
+**Billing** in the menu (Firm Admins and Partners) turns filed work into GST invoices and tracks what clients owe.
+
+### Set up once
+
+1. **Billing → Firm details**: name on invoices, address, state, GSTIN (leave empty if not registered — then no GST is charged), PAN, SAC code and GST rate (confirm with your tax adviser), invoice prefix, payment days, bank details and terms. **Bill work filed from** keeps older filings off the list.
+2. **Billing → Fees**: your fee for each kind of filing. A client with a different fee gets its own on the client's **Billing** tab, where you also enter its GSTIN, billing address and any retainer.
+
+### Raise an invoice
+
+1. **To be billed** lists every filing marked filed (or approved by MCA) that is not on an invoice yet, by client, at its fee.
+2. Tick the filings and press **Create invoice** — a draft opens. Add items, or **Add government fee** for MCA fees paid on the client's behalf (no GST on those).
+3. **Issue invoice** gives it the next number (e.g. RAO/26-27/004) and locks it. CGST + SGST apply when the client is in your state, IGST otherwise — the place of supply comes from the client's GSTIN, the state you entered, or the CIN.
+4. **Print / PDF** gives the tax invoice with amount in words and your bank details.
+
+### Payments
+
+**Record payment** on the invoice: amount received and any TDS the client deducted (both settle the invoice). The Billing page shows what is outstanding, overdue and its age, and what was collected this year.
+
+An issued invoice can't be edited. **Cancel invoice** (with a reason) keeps the number used and puts its filings back on the to-be-billed list; if it was already in your GST return, issue a credit note through your accountant.
+
+## 11. Reminders and daily emails
 
 Each person gets at most one email a day, at 08:30 IST, and only when something needs them.
 
@@ -386,7 +408,7 @@ Each item links straight to the client or filing. Anyone can turn their own emai
 
 Calendars are also re-worked every night, so a new financial year, director KYC cycles and estimated dates move on their own.
 
-## 11. Administration
+## 12. Administration
 
 Firm Admins run the workspace from the Administration menu; Integrata runs the platform from its own console.
 
@@ -410,7 +432,7 @@ Changing a rule re-works every client's calendar at once. The rules guide on tha
 
 - **Built-in rules** — Integrata's version of each compliance rule, used by every firm that hasn't made its own. Software updates never overwrite Integrata's edits.
 
-## 12. FAQ and troubleshooting
+## 13. FAQ and troubleshooting
 
 | Question                                  | Answer                                                                                                                                                                                                                                 |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

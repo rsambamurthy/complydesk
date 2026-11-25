@@ -1025,3 +1025,23 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .reg-print table { width: 100%; border-collapse: collapse; font-size: 11px; } .reg-print th, .reg-print td { border: 1px solid #444; padding: 4px 5px; vertical-align: top; text-align: start; }
 .reg-print th { background: #f0f0f0; }
 .registers { padding: 14px 16px; }
+
+/* Billing */
+.ageing { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; margin: -4px 0 16px; align-items: center; }
+.unbilled-group + .unbilled-group { border-top: 1px solid var(--line); padding-top: 14px; }
+.fee-table input { text-align: right; max-width: 150px; }
+.inv-lines input { width: 100%; }
+.inv-totals { display: grid; gap: 4px; justify-content: end; margin: 14px 0 6px; } .inv-totals > div { display: flex; gap: 24px; justify-content: space-between; min-width: 300px; }
+.inv-total { border-top: 1px solid var(--line); padding-top: 6px; font-size: 17px; }
+.badge.inv-draft { background: #eef0f4; color: #4d5666; } .badge.inv-unpaid { background: var(--info-bg); color: var(--info); } .badge.inv-part_paid { background: var(--warn-bg); color: var(--warn); }
+.badge.inv-paid { background: var(--ok-bg); color: var(--ok); } .badge.inv-overdue { background: var(--err-bg); color: var(--err); } .badge.inv-cancelled { background: #f2f2f2; color: #777; text-decoration: line-through; }
+.inv-print { max-width: 800px; margin: 20px auto; padding: 0 24px; color: #111; font-size: 13px; position: relative; }
+.inv-print h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: .5px; } .inv-print h2 { font-size: 18px; margin: 0 0 4px; }
+.inv-print .pre { white-space: pre-wrap; }
+.inv-head { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #111; padding-bottom: 12px; }
+.inv-to { margin: 14px 0; }
+.inv-print table { width: 100%; border-collapse: collapse; margin: 10px 0; } .inv-print th, .inv-print td { border: 1px solid #999; padding: 6px 8px; text-align: start; vertical-align: top; }
+.inv-print th { background: #f2f2f2; } .inv-grand td { font-weight: 700; font-size: 14px; }
+.inv-box { border: 1px solid #ccc; padding: 8px 10px; margin-top: 10px; border-radius: 4px; }
+.inv-sign { text-align: right; margin-top: 30px; }
+.inv-watermark { position: absolute; top: 260px; left: 0; right: 0; text-align: center; font-size: 90px; color: rgba(200, 0, 0, .09); transform: rotate(-20deg); pointer-events: none; font-weight: 800; }

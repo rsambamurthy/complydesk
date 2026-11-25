@@ -120,6 +120,7 @@ const PAGES: [RegExp, string][] = [
   [/^\/admin\/users/, 'add-your-team'],
   [/^\/admin\/rules/, 'administration'],
   [/^\/admin\/audit/, 'administration'],
+  [/^\/billing/, 'billing'],
   [/^\/platform/, 'integrata-platform-console-integrata-only'],
 ];
 export function sectionForPage(m: HelpManual, page?: string | null): HelpSection | null {
@@ -136,6 +137,7 @@ const SUGGEST: [RegExp, string[]][] = [
   [/^\/extension/, ['How do I connect the extension?', 'The form filler didn\'t match a field — what now?']],
   [/^\/clients/, ['How do I add a client from MCA master data?', 'How do I record a charge in the register?', 'Why is a filing missing from the calendar?']],
   [/^\/admin\/settings/, ['What does "Reviewer checks every filing" do?', 'How do reminder emails work?']],
+  [/^\/billing/, ['How do I raise an invoice?', 'How do I record a payment with TDS?', 'When is IGST charged instead of CGST and SGST?']],
   [/^\/admin\/users/, ['What can each role do?', 'How do I give a client access to their company?']],
 ];
 export function suggestionsFor(page?: string | null): string[] {

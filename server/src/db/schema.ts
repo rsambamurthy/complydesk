@@ -3,7 +3,7 @@
  * Every business table carries tenant_id; every query filters by it (see lib/tenant.ts).
  */
 import { randomUUID } from 'node:crypto';
-import { boolean, customType, date, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { boolean, customType, date, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import type { DueRule, Applies, LateFee } from '../compliance/types.js';
 
 const id = () => text('id').primaryKey().$defaultFn(() => randomUUID());
@@ -18,6 +18,23 @@ export interface TenantSettings {
   requireReview?: boolean; requireClientApproval?: boolean;
   /** No approval or filing while the pre-filing check has things to fix. */
   blockOnCheckErrors?: boolean;
+  /** The firm's details for tax invoices (services/billing.ts). */
+  billing?: BillingProfile;
+}
+
+export interface BillingProfile {
+  legalName?: string; gstin?: string; pan?: string; address?: string;
+  /** GST state code (2 digits) of the firm's registration — decides CGST+SGST vs IGST. */
+  stateCode?: string;
+  sac?: string; gstRate?: number;
+  invoicePrefix?: string; dueDays?: number;
+  bankDetails?: string; terms?: string;
+}
+
+/** A client's billing details (who the invoice is addressed to) and an optional retainer. */
+export interface ClientBilling {
+  billingName?: string; gstin?: string; address?: string; stateCode?: string; email?: string;
+  retainer?: number; retainerPeriod?: 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY';
 }
 
 export const tenants = pgTable('tenants', {
@@ -135,6 +152,7 @@ export const clients = pgTable('clients', {
   flags: jsonb('flags').$type<Record<string, boolean>>().notNull().default({}),
   /** Extra company details MCA forms ask for (PAN, phone, website, business activity codes…) — see eforms/forms.ts. */
   profile: jsonb('profile').$type<Record<string, string>>().notNull().default({}),
+  billing: jsonb('billing').$type<ClientBilling>().notNull().default({}),
   /** Staff member responsible. */
   ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
   /** ACTIVE | ARCHIVED */
@@ -506,3 +524,71 @@ export const registerEntries = pgTable('register_entries', {
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('register_entries_client_ix').on(t.clientId, t.register, t.entryDate)]);
+
+/** Professional fee per kind of filing (rule code): the firm's default (client_id null) or a client's own fee. */
+export const fees = pgTable('fees', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+  ruleCode: text('rule_code').notNull(),
+  amount: numeric('amount').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('fees_uq').on(t.tenantId, t.clientId, t.ruleCode).nullsNotDistinct()]);
+
+/** Tax invoices. Numbered when issued (consecutive per FY); firm and client details are kept as they were on the invoice. */
+export const invoices = pgTable('invoices', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'restrict' }),
+  /** DRAFT | ISSUED | CANCELLED */
+  status: text('status').notNull().default('DRAFT'),
+  number: text('number'),
+  fy: integer('fy'),
+  seq: integer('seq'),
+  date: date('date').notNull(),
+  dueDate: date('due_date').notNull(),
+  firm: jsonb('firm').$type<BillingProfile & { name: string }>(),
+  billTo: jsonb('bill_to').$type<ClientBilling & { name: string; cin: string }>(),
+  placeOfSupply: text('place_of_supply'),
+  gstRate: numeric('gst_rate').notNull().default('18'),
+  notes: text('notes'),
+  /** Totals, worked out by billing/calc.ts whenever lines change. */
+  taxable: numeric('taxable').notNull().default('0'),
+  cgst: numeric('cgst').notNull().default('0'),
+  sgst: numeric('sgst').notNull().default('0'),
+  igst: numeric('igst').notNull().default('0'),
+  nonTaxable: numeric('non_taxable').notNull().default('0'),
+  total: numeric('total').notNull().default('0'),
+  issuedAt: timestamp('issued_at', { withTimezone: true }),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  cancelReason: text('cancel_reason'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, (t) => [index('invoices_tenant_ix').on(t.tenantId, t.date), uniqueIndex('invoices_number_uq').on(t.tenantId, t.number)]);
+
+export const invoiceLines = pgTable('invoice_lines', {
+  id: id(),
+  invoiceId: text('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  /** The filing this line bills (so it drops off "to be billed"). */
+  obligationId: text('obligation_id').references(() => obligations.id, { onDelete: 'set null' }),
+  description: text('description').notNull(),
+  sac: text('sac'),
+  amount: numeric('amount').notNull(),
+  /** false for government fees paid on the client's behalf (reimbursement, no GST). */
+  taxable: boolean('taxable').notNull().default(true),
+  position: integer('position').notNull().default(0),
+}, (t) => [index('invoice_lines_invoice_ix').on(t.invoiceId), index('invoice_lines_obligation_ix').on(t.obligationId)]);
+
+export const payments = pgTable('payments', {
+  id: id(),
+  tenantId: tenantId(),
+  invoiceId: text('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  date: date('date').notNull(),
+  amount: numeric('amount').notNull(),
+  /** TDS the client deducted (counts towards settling the invoice). */
+  tds: numeric('tds').notNull().default('0'),
+  mode: text('mode'),
+  reference: text('reference'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, (t) => [index('payments_invoice_ix').on(t.invoiceId)]);

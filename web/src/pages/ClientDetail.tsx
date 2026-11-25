@@ -1,6 +1,7 @@
 import { Registers } from '../components/Registers';
+import { BillingTiles, ClientBillingForm, FeeTable, InvoiceTable, UnbilledWork, type Summary as BillingSummary } from '../components/Billing';
 import { Fragment, useState, type ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useLoad, useMeta } from '../lib/hooks';
 import type { Auditor, Client, Meta, Obligation, Person, Shareholder, Summary, Year } from '../lib/types';
@@ -18,7 +19,7 @@ import { DscReader, ReadDocument, useReading } from '../components/DocumentReade
 
 interface Detail { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[]; summary: Summary; rules: { code: string; form: string; title: string; applies: boolean }[] }
 
-const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Registers', 'Auditor', 'Details', 'Documents', 'Client users'] as const;
+const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Registers', 'Auditor', 'Billing', 'Details', 'Documents', 'Client users'] as const;
 
 export function ClientDetail() {
   const { id } = useParams();
@@ -54,7 +55,7 @@ export function ClientDetail() {
         <div className="card tile"><span className="tile-n">{num(data.shareholders.reduce((s, x) => s + x.shares, 0))}</span><span className="tile-l">Shares held ({data.shareholders.length} holders)</span></div>
       </div>
       <section className="card">
-        <TabStrip>{TABS.filter((t) => t !== 'Client users' || can('users.manage')).map((t) => <button key={t} role="tab" className={tab === t ? 'active' : ''} aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}</TabStrip>
+        <TabStrip>{TABS.filter((t) => (t !== 'Client users' || can('users.manage')) && (t !== 'Billing' || can('billing.view'))).map((t) => <button key={t} role="tab" className={tab === t ? 'active' : ''} aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}</TabStrip>
         <div className="tab-panel">
           {tab === 'Compliance' && <ComplianceTab key={docsKey} d={data} meta={meta} reload={reload} onPapers={docs?.enabled ? () => setReading('papers') : undefined} />}
           {tab === 'Directors & KMP' && (
@@ -79,6 +80,7 @@ export function ClientDetail() {
               ]} />
           )}
           {tab === 'Meetings' && <ClientMeetings clientId={c.id} />}
+          {tab === 'Billing' && <ClientBillingTab clientId={c.id} />}
           {tab === 'Registers' && <Registers key={docsKey} clientId={c.id} onRecords={setTab} />}
           {tab === 'Documents' && <div className="pad stack" style={{ gap: 8 }}>
             <p className="muted small" style={{ margin: 0 }}>Company records: master data, incorporation papers, annual returns, financial statements, auditor letters. Documents read into this client are kept here too.</p>
@@ -188,5 +190,29 @@ function ChildList<T extends { id: string }>({ title, path, clientId, rows, cols
           onClose={() => setOpen(undefined)} />
       )}
     </>
+  );
+}
+
+/** The client's billing: what it owes, work to bill, invoices, billing details and its own fees. */
+function ClientBillingTab({ clientId }: { clientId: string }) {
+  const sum = useLoad<BillingSummary>(`/billing/summary?clientId=${clientId}`);
+  const details = useLoad<{ retainer?: number; retainerPeriod?: string }>(`/billing/clients/${clientId}`);
+  const { can } = useSession();
+  const nav = useNavigate();
+  const [k, setK] = useState(0);
+  const [err, setErr] = useState<string>();
+  const retainer = async () => {
+    setErr(undefined);
+    try { const inv = await api<{ id: string }>('/billing/invoices', { body: { clientId, obligationIds: [], retainer: true } }); nav(`/billing/invoices/${inv.id}`); } catch (e: any) { setErr(e.message); }
+  };
+  return (
+    <div className="pad stack" style={{ gap: 18 }}>
+      <BillingTiles s={sum.data} />
+      {err && <Alert kind="error">{err}</Alert>}
+      <div><div className="toolbar"><h3>To be billed</h3><span className="grow" />{can('billing.manage') && !!details.data?.retainer && <button className="btn btn-sm btn-secondary" onClick={retainer}>Invoice the retainer</button>}</div><UnbilledWork key={k} clientId={clientId} onChange={() => { sum.reload(); setK(k + 1); }} /></div>
+      <div><h3>Invoices</h3><InvoiceTable clientId={clientId} /></div>
+      <div><h3>Billing details</h3><ClientBillingForm clientId={clientId} /></div>
+      <div><h3>This client’s fees</h3><FeeTable clientId={clientId} /></div>
+    </div>
   );
 }

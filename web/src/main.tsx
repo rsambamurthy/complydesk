@@ -15,6 +15,9 @@ import { Meetings } from './pages/Meetings';
 import { MeetingDetail } from './pages/MeetingDetail';
 import { MeetingPrint } from './pages/MeetingPrint';
 import { RegisterPrint } from './pages/RegisterPrint';
+import { Billing } from './pages/Billing';
+import { InvoiceDetail } from './pages/InvoiceDetail';
+import { InvoicePrint } from './pages/InvoicePrint';
 import { Dashboard } from './pages/Dashboard';
 import { Calendar } from './pages/Calendar';
 import { Clients } from './pages/Clients';
@@ -38,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/meetings/:id/print/:doc" element={<RequireStaff><MeetingPrint /></RequireStaff>} />
           <Route path="/clients/:id/registers/:code/print" element={<RequireStaff><RegisterPrint /></RequireStaff>} />
+          <Route path="/billing/invoices/:id/print" element={<RequireStaff><InvoicePrint /></RequireStaff>} />
           <Route element={<RequireStaff><Shell /></RequireStaff>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
@@ -45,6 +49,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/filings/:id/form" element={<FormPack />} />
             <Route path="/extension" element={<Extension />} />
+            <Route path="/billing" element={<Billing />} />
+            <Route path="/billing/invoices/:id" element={<InvoiceDetail />} />
             <Route path="/help" element={<Help />} />
             <Route path="/help/:id" element={<Help />} />
             <Route path="/clients" element={<Clients />} />

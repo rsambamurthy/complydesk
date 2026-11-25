@@ -2,7 +2,7 @@
 import type { Tenant, TenantSettings } from '../db/schema.js';
 import { z } from 'zod';
 
-export const DEFAULT_SETTINGS: Required<Omit<TenantSettings, 'sessionHours'>> = {
+export const DEFAULT_SETTINGS: Required<Omit<TenantSettings, 'sessionHours' | 'billing'>> = {
   reminderDays: [15, 7, 1], reminderOverdue: true, reminderClientUsers: false,
   requireReview: true, requireClientApproval: false, blockOnCheckErrors: true,
 };

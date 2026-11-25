@@ -8,6 +8,8 @@ const fromUtc = (t: number) => { const d = new Date(t); return iso(d.getUTCFullY
 export const addDays = (s: string, n: number) => fromUtc(toUtc(s) + n * 86_400_000);
 export const daysBetween = (from: string, to: string) => Math.round((toUtc(to) - toUtc(from)) / 86_400_000);
 export const todayIso = () => new Date().toISOString().slice(0, 10);
+/** Today's date in India (IST) — for documents dated for clients, such as invoices. */
+export const todayIst = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 
 /** Financial year (start year) a date falls in: 2026-02-10 → 2025 (FY 2025-26). */
 export const fyOf = (s: string) => { const [y, m] = s.split('-').map(Number); return m >= 4 ? y : y - 1; };

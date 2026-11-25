@@ -1,4 +1,4 @@
-export type Permission = 'clients.view' | 'clients.manage' | 'compliance.work' | 'compliance.approve' | 'compliance.client_approve' | 'rules.manage' | 'users.manage' | 'tenant.settings' | 'audit.view';
+export type Permission = 'clients.view' | 'clients.manage' | 'compliance.work' | 'compliance.approve' | 'compliance.client_approve' | 'rules.manage' | 'users.manage' | 'tenant.settings' | 'audit.view' | 'billing.view' | 'billing.manage';
 
 export interface Me {
   tenant: { id: string; name: string; slug: string };

@@ -79,6 +79,30 @@ for (const x of await db.select().from(o).where(eq(o.tenantId, t))) {
   ]);
 }
 
+// Billing: the firm's details, fees, and two invoices (one part paid, one overdue).
+{
+  const { saveProfile, saveFees, createInvoice, issueInvoice, addPayment } = await import('../services/billing.js');
+  let [tn] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, t));
+  await saveProfile(tn, { legalName: 'Rao & Associates, Company Secretaries', gstin: '33AAKFR1234M1Z7', pan: 'AAKFR1234M', address: '21, Cathedral Road, Gopalapuram, Chennai 600086', stateCode: '33', sac: '998399', gstRate: 18, invoicePrefix: 'RAO', dueDays: 15, billFrom: '2026-04-01', bankDetails: 'Rao & Associates · HDFC Bank, Cathedral Road · A/c 50200012345678 · IFSC HDFC0001234 · UPI raoassociates@hdfcbank', terms: 'Payable within 15 days. Government fees are reimbursements at actuals.' } as any);
+  await saveFees(t, null, { fees: [['AOC4', 6000], ['AOC4_OPC', 3500], ['MGT7', 6000], ['MGT7A', 4000], ['MGT7A_OPC', 3000], ['ADT1', 2000], ['DIR3KYC', 750], ['DPT3', 3000], ['MSME1', 1500], ['MBP1_DIR8', 1500], ['DIR12', 3500], ['PAS3', 5000], ['CHG1', 4000], ['CHG4', 2500], ['MGT14', 3000], ['INC22', 3500], ['AGM', 7500], ['BM_QUARTERLY', 2500], ['BM_HALF_YEARLY', 2500]].map(([ruleCode, amount]) => ({ ruleCode: String(ruleCode), amount })) });
+  [tn] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, t));
+  const admin = (await db.select().from(schema.users).where(eq(schema.users.email, 'admin@demo.in')))[0];
+  const kvWork = (await import('../services/billing.js')).unbilled;
+  const work = await kvWork(tn, kaveri.id);
+  const first = work.filter((w) => w.fee !== null).slice(0, 2);
+  if (first.length) {
+    const a = await createInvoice(tn, admin.id, { clientId: kaveri.id, obligationIds: first.map((w) => w.id), lines: [{ description: 'Government (MCA) fees paid on your behalf', amount: 600, taxable: false }], retainer: false });
+    await db.update(schema.invoices).set({ date: '2026-10-05', dueDate: '2026-10-20' }).where(eq(schema.invoices.id, a.id));
+    const ia = await issueInvoice(tn, a.id);
+    await addPayment(t, admin.id, a.id, { date: '2026-10-25', amount: Math.round(Number(ia.total) / 2), tds: 0, mode: 'UPI', reference: 'UTR 6230981123' } as any);
+
+  }
+  const marina = (await db.select().from(schema.clients).where(eq(schema.clients.cin, 'U51909TN2019PTC129876')))[0];
+  const b = await createInvoice(tn, admin.id, { clientId: marina.id, obligationIds: [], lines: [{ description: 'Annual compliance retainer — FY 2026-27 (first half)', amount: 18000, taxable: true }], retainer: false });
+  await db.update(schema.invoices).set({ date: '2026-09-01', dueDate: '2026-09-16' }).where(eq(schema.invoices.id, b.id));
+  await issueInvoice(tn, b.id);
+}
+
 console.log('Seeded demo workspace: workspace "demo", admin@demo.in / Demo@12345');
 }
 

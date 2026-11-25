@@ -23,6 +23,7 @@ export function Shell() {
       { to: '/calendar', label: 'Compliance calendar', icon: 'calendar', show: can('clients.view') },
       { to: '/meetings', label: 'Meetings', icon: 'meeting', show: can('clients.view') },
       { to: '/extension', label: 'MCA form filler', icon: 'upload', show: can('compliance.work') && !me?.user.clientIds.length },
+      { to: '/billing', label: 'Billing', icon: 'billing', show: can('billing.view') && !me?.user.clientIds.length },
     ]),
     group('clients', 'Clients', 'clients', [
       { to: '/clients', label: 'All clients', icon: 'clients', end: true, show: can('clients.view') },
