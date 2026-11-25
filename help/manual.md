@@ -150,6 +150,16 @@ The CIN must match the company type (PTC for private, OPC for one person compani
 
 Tip: record the AGM date as soon as it is held (or mark the AGM held in Meetings). AOC-4 and MGT-7 due dates are estimates until then.
 
+### Client compliance report
+
+**Compliance report** at the top of a client's page opens a one-page report for the company: its status (on track / due soon / needs attention), what is overdue with late-fee estimates, what is waiting for the client's approval, what is due in the next 60 days, what was filed recently with SRNs, and DSCs to renew.
+
+- **Print / save as PDF** for a meeting or a file.
+- **Email this report to the client** sends it now — to the client's accounts email (Billing details), company email and client users, or to addresses you type.
+- To send it to every client automatically on the 1st of each month, switch on **Administration → Settings → Client compliance report**.
+
+Client users can open the same report for their own company.
+
 ### Statutory registers
 
 The client's **Registers** tab keeps the registers the Act requires: members (MGT-1), allotments and transfers of shares, directors and KMP with their shareholding, charges (CHG-7), contracts in which directors are interested (MBP-4) and loans, guarantees, security and investments (MBP-2).

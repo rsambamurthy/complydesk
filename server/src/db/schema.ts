@@ -18,6 +18,8 @@ export interface TenantSettings {
   requireReview?: boolean; requireClientApproval?: boolean;
   /** No approval or filing while the pre-filing check has things to fix. */
   blockOnCheckErrors?: boolean;
+  /** Email each client its compliance report on the 1st of every month. */
+  monthlyClientReport?: boolean;
   /** The firm's details for tax invoices (services/billing.ts). */
   billing?: BillingProfile;
 }
@@ -592,3 +594,15 @@ export const payments = pgTable('payments', {
   createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
 }, (t) => [index('payments_invoice_ix').on(t.invoiceId)]);
+
+/** Compliance reports emailed to a client — by hand (sent_by) or monthly (period = YYYY-MM, once per client and month). */
+export const clientReports = pgTable('client_reports', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  period: text('period'),
+  sentTo: jsonb('sent_to').$type<string[]>().notNull().default([]),
+  sentBy: text('sent_by').references(() => users.id, { onDelete: 'set null' }),
+  summary: jsonb('summary').$type<Record<string, number>>(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('client_reports_client_ix').on(t.clientId, t.sentAt), uniqueIndex('client_reports_monthly_uq').on(t.clientId, t.period)]);

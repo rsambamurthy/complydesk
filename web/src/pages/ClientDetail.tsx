@@ -43,10 +43,11 @@ export function ClientDetail() {
           <h1>{c.name}</h1>
           <p className="muted"><span className="mono">{c.cin}</span> · {COMPANY_TYPE[c.companyType]}{c.smallCompany && ' · Small company'}{c.incorporationDate && ` · Incorporated ${fmtDate(c.incorporationDate)}`}</p>
         </div>
-        {can('clients.manage') && <div className="head-actions">
-          {docs?.enabled && <button className="btn btn-secondary" onClick={() => setReading('any')}>Read a document</button>}
-          <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit details</button>
-        </div>}
+        <div className="head-actions">
+          <a className="btn btn-secondary" href={`/clients/${c.id}/report`} target="_blank" rel="noreferrer">Compliance report</a>
+          {can('clients.manage') && docs?.enabled && <button className="btn btn-secondary" onClick={() => setReading('any')}>Read a document</button>}
+          {can('clients.manage') && <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit details</button>}
+        </div>
       </div>
       <div className="tiles" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
         <div className="card tile"><span className={`tile-n ${data.summary.overdue ? 'tile-bad' : ''}`}>{data.summary.overdue}</span><span className="tile-l">Overdue</span></div>

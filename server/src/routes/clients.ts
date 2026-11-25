@@ -5,6 +5,7 @@ import { db, schema, h, audit } from '../lib/core.js';
 import { requirePerm, clientScope, assertClientVisible } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
 import { auditorInput, clientInput, eventInput, personInput, shareholderInput, yearInput, FLAGS, DESIGNATIONS } from '../lib/validators.js';
+import { buildReport, recipientsFor, reportLog, sendReport } from '../services/clientReport.js';
 import { createClient, updateClient, clientDetail, peopleSvc, shareholdersSvc, auditorsSvc, setYear } from '../services/clients.js';
 import { addEvent, perClient, summary } from '../services/obligations.js';
 import { activeFys, rulesFor } from '../compliance/sync.js';
@@ -88,6 +89,21 @@ clientsRouter.put('/:id/years/:fy', manage, h(async (req, res) => {
   const r = await setYear(tid(req), req.params.id, Number(req.params.fy), parse(yearInput, req.body));
   await audit(req, 'client.year', 'client', req.params.id, { fy: req.params.fy, ...req.body });
   res.json(r);
+}));
+
+// ---- Compliance report: view (anyone who sees the client, client users included), email, sent log -------------
+clientsRouter.get('/:id/report', view, h(async (req, res) => {
+  assertClientVisible(req, req.params.id);
+  const r = await buildReport(req.staff!.tenant, req.params.id);
+  const staff = !req.staff!.user.clientIds.length;
+  res.json({ ...r, recipients: staff ? await recipientsFor(req.staff!.tenant, req.params.id) : [], log: staff ? await reportLog(tid(req), req.params.id) : [] });
+}));
+clientsRouter.post('/:id/report/send', requirePerm('compliance.work'), h(async (req, res) => {
+  assertClientVisible(req, req.params.id);
+  const to = Array.isArray(req.body?.to) ? req.body.to.map(String) : typeof req.body?.to === 'string' ? req.body.to.split(/[,;\s]+/).filter(Boolean) : undefined;
+  const out = await sendReport(req.staff!.tenant, req.params.id, { to, by: req.staff!.user.id });
+  await audit(req, 'client.report.send', 'client', req.params.id, { to: out.to });
+  res.json(out);
 }));
 
 clientsRouter.post('/:id/events', requirePerm('compliance.work'), h(async (req, res) => {

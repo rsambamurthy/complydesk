@@ -18,6 +18,7 @@ import { RegisterPrint } from './pages/RegisterPrint';
 import { Billing } from './pages/Billing';
 import { InvoiceDetail } from './pages/InvoiceDetail';
 import { InvoicePrint } from './pages/InvoicePrint';
+import { ClientReport } from './pages/ClientReport';
 import { Dashboard } from './pages/Dashboard';
 import { Calendar } from './pages/Calendar';
 import { Clients } from './pages/Clients';
@@ -42,6 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/meetings/:id/print/:doc" element={<RequireStaff><MeetingPrint /></RequireStaff>} />
           <Route path="/clients/:id/registers/:code/print" element={<RequireStaff><RegisterPrint /></RequireStaff>} />
           <Route path="/billing/invoices/:id/print" element={<RequireStaff><InvoicePrint /></RequireStaff>} />
+          <Route path="/clients/:id/report" element={<RequireStaff><ClientReport /></RequireStaff>} />
           <Route element={<RequireStaff><Shell /></RequireStaff>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />

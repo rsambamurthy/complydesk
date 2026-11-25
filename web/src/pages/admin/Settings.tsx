@@ -7,7 +7,7 @@ import { Fields, useRecordForm } from '../../components/RecordForm';
 import { useSession } from '../../lib/session';
 import { fmtDate } from '../../lib/format';
 
-interface S { reminderDays: number[]; reminderOverdue: boolean; reminderClientUsers: boolean; requireReview: boolean; requireClientApproval: boolean; blockOnCheckErrors: boolean }
+interface S { reminderDays: number[]; reminderOverdue: boolean; reminderClientUsers: boolean; requireReview: boolean; requireClientApproval: boolean; blockOnCheckErrors: boolean; monthlyClientReport: boolean }
 interface Item { group: string; text: string; date: string; link: string }
 const GROUP: Record<string, string> = { overdue: 'Overdue', review: 'Waiting for your review', approval: 'Waiting for your approval', due: 'Coming up', minutes: 'Minutes to sign', dsc: 'DSC expiring' };
 
@@ -44,13 +44,17 @@ function SettingsForm({ s, edit, onSaved }: { s: S; edit: boolean; onSaved: () =
           { key: 'reminderOverdue', label: 'Include overdue items every day until they’re done', type: 'checkbox', wide: true },
           { key: 'reminderClientUsers', label: 'Also email client users about their own company', type: 'checkbox', wide: true, help: 'Filings waiting for a client’s approval are always sent to that client’s approver.' },
         ]} />
+        <h3 style={{ margin: '10px 0 0' }}>Client compliance report</h3>
+        <Fields form={form} fields={[
+          { key: 'monthlyClientReport', label: 'Email each client its compliance report on the 1st of every month', type: 'checkbox', wide: true, help: 'Goes to the client’s accounts / company email and its client users. You can also send it any time from the client’s page (Compliance report).' },
+        ]} />
       </fieldset>
       {form.error && <Alert kind="error">{form.error}</Alert>}
       {ok && <Alert kind="success">Saved.</Alert>}
       {edit && <div><button className="btn btn-primary" disabled={form.busy} onClick={() => form.submit(async (v) => {
         const days = String(v.reminderDays ?? '').split(/[,\s]+/).filter(Boolean).map(Number);
         if (days.some((d) => !Number.isInteger(d) || d < 0 || d > 90)) throw new Error('Days must be whole numbers from 0 to 90');
-        await api('/admin/settings', { method: 'PUT', body: { reminderDays: days, reminderOverdue: !!v.reminderOverdue, reminderClientUsers: !!v.reminderClientUsers, requireReview: !!v.requireReview, requireClientApproval: !!v.requireClientApproval, blockOnCheckErrors: !!v.blockOnCheckErrors } });
+        await api('/admin/settings', { method: 'PUT', body: { reminderDays: days, reminderOverdue: !!v.reminderOverdue, reminderClientUsers: !!v.reminderClientUsers, requireReview: !!v.requireReview, requireClientApproval: !!v.requireClientApproval, blockOnCheckErrors: !!v.blockOnCheckErrors, monthlyClientReport: !!v.monthlyClientReport } });
         setOk(true); onSaved();
       })}>Save settings</button></div>}
     </section>
