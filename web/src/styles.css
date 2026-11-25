@@ -1058,3 +1058,4 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .rep-h { font-size: 15px; margin: 22px 0 6px; } .rep-h.bad { color: var(--err); } .rep-h.warn { color: var(--warn); } .rep-h.ok { color: var(--ok); }
 .rep-table { width: 100%; border-collapse: collapse; font-size: 13px; } .rep-table td { border-bottom: 1px solid var(--line); padding: 7px 4px; vertical-align: top; } .rep-table td + td { color: var(--ink-2); white-space: nowrap; }
 @media (max-width: 640px) { .rep-tiles { grid-template-columns: repeat(2, 1fr); } .rep-actions { flex-direction: column; } }
+.ai-check { border: 1px solid var(--ok-bg); background: #f6fbf7; border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; } .ai-check.bad { border-color: #f3c7c7; background: #fff7f7; }

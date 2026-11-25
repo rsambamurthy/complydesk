@@ -1,5 +1,6 @@
 /** Meetings API: routes check permission and client visibility; the work is in services/meetings.ts. */
 import { Router } from 'express';
+import { draftDailyLimit, draftExplanatoryAi, draftItemAi, draftMinutesAi, draftingEnabled } from '../services/meetingAi.js';
 import { z } from 'zod';
 import { h, audit } from '../lib/core.js';
 import { requirePerm, clientScope, assertClientVisible } from '../auth/session.js';
@@ -46,6 +47,15 @@ meetingsRouter.post('/:id/held', work, h(async (req, res) => {
   await audit(req, 'meeting.held', 'meeting', x.id, { heldOn: x.heldOn });
   res.json(x);
 }));
+// AI drafting (drafts only — the CS reviews and saves)
+meetingsRouter.get('/ai/status', view, h(async (_req, res) => res.json({ enabled: draftingEnabled(), dailyLimit: draftDailyLimit() })));
+meetingsRouter.post('/:id/minutes-ai', work, h(async (req, res) => {
+  await visible(req);
+  const notes = typeof req.body?.notes === 'string' ? req.body.notes.slice(0, 20000) : undefined;
+  res.json(await draftMinutesAi(tid(req), req.staff!.user.id, req.params.id, notes));
+}));
+meetingsRouter.post('/:id/items/draft', work, h(async (req, res) => { await visible(req); res.json(await draftItemAi(tid(req), req.staff!.user.id, req.params.id, String(req.body?.description ?? ''))); }));
+meetingsRouter.post('/items/:itemId/explanatory-ai', work, h(async (req, res) => res.json(await draftExplanatoryAi(tid(req), req.staff!.user.id, req.params.itemId))));
 meetingsRouter.get('/:id/minutes-draft', view, h(async (req, res) => { await visible(req); res.json({ text: await svc.draftMinutes(tid(req), req.params.id) }); }));
 meetingsRouter.put('/:id/minutes', work, h(async (req, res) => { await visible(req); res.json(await svc.saveMinutes(tid(req), req.params.id, String(req.body?.text ?? ''))); }));
 meetingsRouter.post('/:id/minutes-signed', work, h(async (req, res) => {

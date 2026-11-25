@@ -2,7 +2,7 @@
  * The help assistant: answers a question from the user manual only (Claude, forced `answer` tool, manual in a cached
  * system prompt). Without an AI key — or with EXTRACT_DRIVER=mock — it answers with the best-matching manual sections.
  */
-import { MODEL, readerName } from '../extract/reader.js';
+import { aiMode, callTool } from '../lib/ai.js';
 import { leadText, manual, matchFaq, searchManual, sectionForPage, type HelpManual } from './manual.js';
 
 export interface Turn { role: 'user' | 'assistant'; text: string }
@@ -52,33 +52,23 @@ export function tidyHistory(h: Turn[]) {
 }
 
 async function claude(q: AskIn, m: HelpManual): Promise<AskOut> {
-  const { default: Anthropic } = await import('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 2 });
-  const model = process.env.HELP_MODEL || MODEL();
   const here = sectionForPage(m, q.page);
   const context = [
     q.page ? `The user is on the page ${q.page}${here ? ` (explained in section [${here.id}])` : ''}.` : '',
     q.roles?.length ? `Their role: ${q.roles.join(', ')}.` : '',
   ].filter(Boolean).join(' ');
-  const history = tidyHistory(q.history ?? []);
-  const msg = await client.messages.create({
-    model, max_tokens: 1200,
-    system: [
-      { type: 'text', text: RULES },
-      { type: 'text', text: `<manual>\n${manualForModel(m)}\n</manual>`, cache_control: { type: 'ephemeral' } },
-    ] as any,
-    tools: [ANSWER_TOOL as any],
-    tool_choice: { type: 'tool', name: 'answer' },
-    messages: [...history, { role: 'user', content: `${context ? `${context}\n\n` : ''}Question: ${q.question}` }] as any,
+  const r = await callTool<{ answer?: string; sections?: string[]; covered?: boolean }>({
+    model: process.env.HELP_MODEL || undefined, maxTokens: 1200, timeoutMs: 60_000,
+    system: [{ text: RULES }, { text: `<manual>\n${manualForModel(m)}\n</manual>`, cache: true }],
+    tool: ANSWER_TOOL,
+    messages: [...tidyHistory(q.history ?? []), { role: 'user', content: `${context ? `${context}\n\n` : ''}Question: ${q.question}` }],
   });
-  const tool = msg.content.find((c: any) => c.type === 'tool_use') as any;
-  if (!tool) throw new Error('No answer');
   const ids = new Set(m.sections.map((s) => s.id));
   return {
-    answer: String(tool.input.answer ?? '').trim(),
-    sections: (Array.isArray(tool.input.sections) ? tool.input.sections : []).filter((s: string) => ids.has(s)).slice(0, 4),
-    covered: tool.input.covered !== false,
-    model, inputTokens: msg.usage?.input_tokens, outputTokens: msg.usage?.output_tokens,
+    answer: String(r.input.answer ?? '').trim(),
+    sections: (Array.isArray(r.input.sections) ? r.input.sections : []).filter((s) => ids.has(s)).slice(0, 4),
+    covered: r.input.covered !== false,
+    model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens,
   };
 }
 
@@ -98,7 +88,7 @@ export function searchAnswer(q: AskIn, m: HelpManual): AskOut {
   };
 }
 
-export const assistantMode = () => (readerName() === 'claude' ? 'ai' : 'search');
+export const assistantMode = () => (aiMode() === 'claude' ? 'ai' : 'search');
 
 export async function askManual(q: AskIn): Promise<AskOut> {
   const m = manual();

@@ -360,6 +360,8 @@ export const meetings = pgTable('meetings', {
   /** General meetings: members present in person (quorum, Sec 103). */
   membersPresent: integer('members_present'),
   minutes: text('minutes'),
+  /** The CS's own notes of what happened (for drafting the minutes). */
+  notes: text('notes'),
   minutesSignedOn: date('minutes_signed_on'),
   /** The calendar item this meeting satisfied (board meeting for the period / AGM). */
   obligationId: text('obligation_id').references(() => obligations.id, { onDelete: 'set null' }),
@@ -383,6 +385,9 @@ export const meetingItems = pgTable('meeting_items', {
   completes: jsonb('completes').$type<string[]>().notNull().default([]),
   /** PENDING | PASSED | NOT_PASSED | NOTED | DEFERRED */
   outcome: text('outcome').notNull().default('PENDING'),
+  /** What was discussed (for the minutes) and, for general meetings, the explanatory statement (Sec 102). */
+  notes: text('notes'),
+  explanatory: text('explanatory'),
   createdObligationIds: jsonb('created_obligation_ids').$type<string[]>().notNull().default([]),
 });
 
@@ -606,3 +611,20 @@ export const clientReports = pgTable('client_reports', {
   summary: jsonb('summary').$type<Record<string, number>>(),
   sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('client_reports_client_ix').on(t.clientId, t.sentAt), uniqueIndex('client_reports_monthly_uq').on(t.clientId, t.period)]);
+
+/** Every AI drafting request (meeting minutes, resolutions, explanatory statements): what was asked, what came back, cost. */
+export const aiDrafts = pgTable('ai_drafts', {
+  id: id(),
+  tenantId: tenantId(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  /** MINUTES | RESOLUTION | EXPLANATORY */
+  kind: text('kind').notNull(),
+  meetingId: text('meeting_id').references(() => meetings.id, { onDelete: 'cascade' }),
+  itemId: text('item_id'),
+  input: jsonb('input'),
+  output: jsonb('output'),
+  model: text('model'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  createdAt: createdAt(),
+}, (t) => [index('ai_drafts_tenant_ix').on(t.tenantId, t.createdAt)]);

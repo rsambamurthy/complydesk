@@ -7,12 +7,12 @@ import { X509Certificate } from 'node:crypto';
 import { DOC_TYPES, type DocType } from './doctypes.js';
 import { FIXTURES } from './fixtures.js';
 import { toDate } from './normalise.js';
+import { aiMode, callTool } from '../lib/ai.js';
 
 export const READABLE: Record<string, 'document' | 'image'> = {
   'application/pdf': 'document', 'image/png': 'image', 'image/jpeg': 'image', 'image/webp': 'image', 'image/gif': 'image',
 };
-export const MODEL = () => process.env.EXTRACT_MODEL || 'claude-sonnet-5-5';
-export const readerName = () => (process.env.EXTRACT_DRIVER === 'mock' ? 'mock' : process.env.ANTHROPIC_API_KEY ? 'claude' : null);
+export { defaultModel as MODEL, aiMode as readerName } from '../lib/ai.js';
 
 export interface ReadOut { raw: Record<string, any>; model: string; inputTokens?: number; outputTokens?: number }
 
@@ -35,26 +35,20 @@ const wrap = (docType: DocType) => ({
 });
 
 async function claude(docType: DocType, file: Buffer, mime: string, extraGuide = ''): Promise<ReadOut> {
-  const { default: Anthropic } = await import('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 120_000, maxRetries: 2 });
   const data = file.toString('base64');
   const source = READABLE[mime] === 'document'
     ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data } }
     : { type: 'image' as const, source: { type: 'base64' as const, media_type: mime as 'image/png', data } };
-  const model = MODEL();
-  const msg = await client.messages.create({
-    model, max_tokens: 8000, system: SYSTEM,
-    tools: [{ name: 'record_document', description: 'Record the values read from the document.', input_schema: wrap(docType) as any }],
-    tool_choice: { type: 'tool', name: 'record_document' },
+  const r = await callTool({
+    system: [{ text: SYSTEM }], maxTokens: 8000,
+    tool: { name: 'record_document', description: 'Record the values read from the document.', input_schema: wrap(docType) },
     messages: [{ role: 'user', content: [source, { type: 'text', text: `${DOC_TYPES[docType].guide}${extraGuide ? `\n\n${extraGuide}` : ''}\n\nRead it and call record_document.` }] }],
   });
-  const tool = msg.content.find((c: any) => c.type === 'tool_use') as any;
-  if (!tool) throw new Error('The document could not be read');
-  return { raw: tool.input, model, inputTokens: msg.usage?.input_tokens, outputTokens: msg.usage?.output_tokens };
+  return { raw: r.input, model: r.model, inputTokens: r.inputTokens, outputTokens: r.outputTokens };
 }
 
 export async function readDocument(docType: DocType, file: Buffer, mime: string, extraGuide = ''): Promise<ReadOut> {
-  if (readerName() === 'mock') return { raw: structuredClone(FIXTURES[docType]), model: 'mock' };
+  if (aiMode() === 'mock') return { raw: structuredClone(FIXTURES[docType]), model: 'mock' };
   return claude(docType, file, mime, extraGuide);
 }
 

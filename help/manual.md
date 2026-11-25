@@ -288,6 +288,17 @@ The checks are warnings — the CS decides:
 
 Template wording is a starting draft for the CS to adapt.
 
+### Drafting with AI
+
+When the AI is switched on for your workspace:
+
+- **Add an item → ✦ Describe it — AI drafts it**: write a sentence with the names, numbers and dates you have ("allot 5,000 equity shares of ₹10 at ₹100 each to Anita Rao on private placement"). The AI drafts the title, the resolution, the kind (board / ordinary / special), the filings it will create and — for a general meeting — the explanatory statement. Anything missing is left as ___ and listed; figures you didn't give are flagged. You check and edit before **Add to agenda**.
+- **Explanatory statement**: on a general meeting item without one, **draft it with AI**; it opens in the item for you to edit. It prints with the notice under Section 102.
+- **Minutes → ✦ Write with AI**: put your rough notes in **Your notes from the meeting** (and per item under **Edit → What was discussed**), then press the button. The AI writes the minutes in the Secretarial Standards style from the meeting record and your notes. ComplyDesk then checks the draft: every passed resolution word for word, everyone present and the Chairperson named, the date, the quorum, and no figures that aren't in the record or your notes. Put right anything marked ✗, then **Save**.
+- **Certified true copy**: each passed resolution has a **Certified true copy** link that prints it, ready to sign once the minutes are signed.
+
+Nothing the AI writes is saved until you save it. Without the AI, **Draft from the agenda** still writes the minutes from the agenda wording.
+
 ## 8. Reading documents with AI
 
 Upload a PDF or a photo / screenshot; ComplyDesk reads it, shows the values in a form with anything unclear highlighted in amber, and saves nothing until you press Save.

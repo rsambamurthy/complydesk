@@ -11,9 +11,9 @@ import { useSession } from '../lib/session';
 import { Attachments } from '../components/Attachments';
 import type { ObStatus } from '../lib/types';
 
-interface Item { id: string; seq: number; templateKey: string | null; title: string; resolutionType: string; text: string | null; personId: string | null; filings: string[]; completes: string[]; outcome: string; created: { id: string; form: string; dueDate: string; status: ObStatus }[] }
+interface Item { id: string; seq: number; templateKey: string | null; title: string; resolutionType: string; text: string | null; notes: string | null; explanatory: string | null; personId: string | null; filings: string[]; completes: string[]; outcome: string; created: { id: string; form: string; dueDate: string; status: ObStatus }[] }
 interface Detail {
-  meeting: { id: string; clientId: string; type: string; fy: number; title: string; date: string; time: string | null; mode: string; venue: string | null; videoLink: string | null; status: string; noticeSentOn: string | null; shorterNotice: boolean; heldOn: string | null; chairpersonId: string | null; membersPresent: number | null; minutes: string | null; minutesSignedOn: string | null; obligationId: string | null };
+  meeting: { id: string; clientId: string; type: string; fy: number; title: string; date: string; time: string | null; mode: string; venue: string | null; videoLink: string | null; status: string; noticeSentOn: string | null; shorterNotice: boolean; heldOn: string | null; chairpersonId: string | null; membersPresent: number | null; minutes: string | null; notes: string | null; minutesSignedOn: string | null; obligationId: string | null };
   client: { id: string; name: string; cin: string; registeredOffice: string | null };
   items: Item[]; attendance: { personId: string; name: string; designation: string; din: string | null; status: string | null }[];
   people: { id: string; name: string; designation: string }[]; checks: { key: string; ok: boolean; level: string; text: string }[];
@@ -21,6 +21,10 @@ interface Detail {
 }
 const RES: Record<string, string> = { NONE: 'For noting', BOARD: 'Board resolution', ORDINARY: 'Ordinary resolution', SPECIAL: 'Special resolution' };
 const OUTCOMES: Record<string, string> = { PENDING: 'Not yet decided', PASSED: 'Passed', NOTED: 'Noted', NOT_PASSED: 'Not passed', DEFERRED: 'Deferred' };
+interface Issue { level: 'fix' | 'look'; text: string }
+/** Whether AI drafting is switched on for this workspace. */
+const useAi = () => useLoad<{ enabled: boolean }>('/meetings/ai/status').data?.enabled ?? false;
+
 const STEPS = [['SCHEDULED', 'Scheduled'], ['NOTICE_SENT', 'Notice sent'], ['HELD', 'Held'], ['MINUTES_SIGNED', 'Minutes signed']];
 
 export function MeetingDetail() {
@@ -30,6 +34,8 @@ export function MeetingDetail() {
   const { can } = useSession();
   const [dlg, setDlg] = useState<'edit' | 'notice' | 'held' | 'add' | 'sign' | Item>();
   const [err, setErr] = useState<string>();
+  const [aiBusy, setAiBusy] = useState<string>();
+  const ai = useAi();
   if (error) return <div className="page"><Alert kind="error">{error}</Alert></div>;
   if (!data || !meta) return <Spinner />;
   const { meeting: x, client, items } = data;
@@ -88,10 +94,13 @@ export function MeetingDetail() {
                   <div style={{ flex: 1 }}>
                     <strong>{i.title}</strong> <span className="badge sm">{RES[i.resolutionType]}</span>
                     {i.text && <p className="small" style={{ margin: '6px 0', whiteSpace: 'pre-wrap' }}>{i.text}</p>}
+                    {i.notes && <p className="small muted" style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}><b>Discussion notes:</b> {i.notes}</p>}
+                    {x.type !== 'BOARD' && i.resolutionType !== 'NONE' && <p className="small" style={{ margin: '4px 0' }}>{i.explanatory ? <span className="ok-text">✓ Explanatory statement written</span> : <span className="warn-text">! No explanatory statement yet{edit && !signed && ai && <> — <button className="link-btn" disabled={!!aiBusy} onClick={async () => { setAiBusy(i.id); setErr(undefined); try { const r = await api<{ explanatory: string }>(`/meetings/items/${i.id}/explanatory-ai`, { body: {} }); setDlg({ ...i, explanatory: r.explanatory }); } catch (e: any) { setErr(e.message); } finally { setAiBusy(undefined); } }}>{aiBusy === i.id ? 'Drafting…' : 'draft it with AI'}</button></>}</span>}</p>}
                     <div className="small" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                       {i.filings.filter((f) => !i.created.some((c) => meta.eventRules.find((r) => r.code === f)?.form === c.form)).map((f) => <span key={f} className="chip">Creates {meta.eventRules.find((r) => r.code === f)?.form ?? f}</span>)}
                       {i.completes.length > 0 && <span className="chip">Completes {i.completes.includes('MBP1_DIR8') ? 'MBP-1 / DIR-8' : i.completes.join(', ')}</span>}
                       {i.created.map((c) => <Link key={c.id} to={`/clients/${client.id}`} className="chip">{c.form} due {fmtDate(c.dueDate)} <StatusBadge status={c.status} /></Link>)}
+                      {i.outcome === 'PASSED' && i.resolutionType !== 'NONE' && x.heldOn && <a className="chip" href={`/meetings/${x.id}/print/ctc?item=${i.id}`} target="_blank" rel="noreferrer">Certified true copy</a>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -114,7 +123,7 @@ export function MeetingDetail() {
         <Attendance d={data} edit={edit && !signed} onSaved={reload} />
       </div>
 
-      {x.heldOn && <Minutes d={data} edit={edit} onSaved={reload} />}
+      {x.heldOn && <Minutes d={data} edit={edit} ai={ai} onSaved={reload} />}
 
       <section className="card pad"><h3 style={{ marginTop: 0 }}>Documents</h3>
         <Attachments entity="meeting" entityId={x.id} canAdd={can('compliance.work')} canRemove={can('compliance.work') && !signed} /></section>
@@ -139,33 +148,64 @@ export function MeetingDetail() {
         extra={<p className="muted small" style={{ marginTop: 0 }}>Signed minutes can’t be changed afterwards.</p>}
         fields={[{ key: 'on', label: 'Signed by the Chairperson on', type: 'date', required: true }]}
         onSave={(v) => api(`/meetings/${x.id}/minutes-signed`, { body: { on: v.on } }).then(reload)} onClose={() => setDlg(undefined)} />}
-      {dlg === 'add' && <AddItem d={data} onClose={() => setDlg(undefined)} onSaved={reload} />}
+      {dlg === 'add' && <AddItem d={data} ai={ai} onClose={() => setDlg(undefined)} onSaved={reload} />}
       {dlg && typeof dlg === 'object' && <RecordModal title="Agenda item" initial={dlg}
         fields={[
           { key: 'title', label: 'Title', wide: true, required: true },
           { key: 'resolutionType', label: 'Kind', type: 'select', required: true, options: Object.entries(RES).filter(([k]) => x.type === 'BOARD' ? !['ORDINARY', 'SPECIAL'].includes(k) : k !== 'BOARD').map(([value, label]) => ({ value, label })) },
           { key: 'personId', label: 'About (director / KMP)', type: 'select', options: data.people.map((p) => ({ value: p.id, label: `${p.name} — ${DESIGNATION[p.designation] ?? p.designation}` })) },
           { key: 'text', label: 'Text', type: 'textarea', wide: true },
+          { key: 'notes', label: 'What was discussed (for the minutes)', type: 'textarea', wide: true, help: 'Your rough notes — AI turns them into a line in the minutes.' },
+          ...(x.type !== 'BOARD' ? [{ key: 'explanatory', label: 'Explanatory statement (Sec 102)', type: 'textarea' as const, wide: true, help: 'Printed with the notice for special business.' }] : []),
           { key: 'filings', label: 'Filings to put on the calendar when passed', type: 'checks', options: meta.eventRules.map((r) => ({ value: r.code, label: `${r.form} — ${r.title} (${r.days} days)` })) },
         ]}
-        onSave={(v) => api(`/meetings/items/${dlg.id}`, { method: 'PATCH', body: { title: v.title, resolutionType: v.resolutionType, personId: v.personId, text: v.text, filings: v.filings } }).then(reload)}
+        onSave={(v) => api(`/meetings/items/${dlg.id}`, { method: 'PATCH', body: { title: v.title, resolutionType: v.resolutionType, personId: v.personId, text: v.text, filings: v.filings, notes: v.notes || null, ...(x.type !== 'BOARD' ? { explanatory: v.explanatory || null } : {}) } }).then(reload)}
         danger={{ label: 'Remove item', onClick: () => api(`/meetings/items/${dlg.id}`, { method: 'DELETE' }).then(reload) }}
         onClose={() => setDlg(undefined)} />}
     </div>
   );
 }
 
-function AddItem({ d, onClose, onSaved }: { d: Detail; onClose: () => void; onSaved: () => void }) {
+interface Drafted { title: string; resolutionType: string; text: string; explanatory: string; filings: string[]; missing: string[]; issues: Issue[] }
+
+function AddItem({ d, ai, onClose, onSaved }: { d: Detail; ai: boolean; onClose: () => void; onSaved: () => void }) {
+  const meta = useMeta();
   const [q, setQ] = useState('');
-  const [pick, setPick] = useState<Detail['templates'][number] | 'custom'>();
+  const [pick, setPick] = useState<Detail['templates'][number] | 'custom' | 'ai'>();
+  const [drafted, setDrafted] = useState<Drafted>();
   const list = d.templates.filter((t) => !q || t.title.toLowerCase().includes(q.toLowerCase()));
-  if (pick) return (
+  const gm = d.meeting.type !== 'BOARD';
+  const kinds = Object.entries(RES).filter(([k]) => !gm ? !['ORDINARY', 'SPECIAL'].includes(k) : k !== 'BOARD').map(([value, label]) => ({ value, label }));
+  if (pick === 'ai' && !drafted) return (
+    <RecordModal key="describe" title="Describe it — AI drafts the item" saveLabel="Draft it" initial={{ description: q }} keepOpen
+      extra={<p className="muted small" style={{ marginTop: 0 }}>Say what the {gm ? 'members' : 'Board'} will decide, with the names, numbers and dates you have — e.g. “allot 5,000 equity shares of ₹10 at ₹100 each to Anita Rao on private placement”. Anything missing is left as ___. You check the draft before it’s added.</p>}
+      fields={[{ key: 'description', label: 'What is the item about?', type: 'textarea', wide: true, required: true }]}
+      onSave={async (v) => { setDrafted(await api<Drafted>(`/meetings/${d.meeting.id}/items/draft`, { body: { description: v.description } })); }}
+      onClose={onClose} />
+  );
+  if (pick === 'ai' && drafted) return (
+    <RecordModal key="check" title="Check the AI draft" saveLabel="Add to agenda" initial={drafted}
+      extra={<>
+        <Alert kind="info">Drafted by AI — read every word. Cited sections, blanks (___) and anything below need your check.</Alert>
+        {[...drafted.issues.map((i) => i.text), ...drafted.missing.map((m) => `To fill in or confirm: ${m}`)].map((t) => <div key={t} className="warn-text small">! {t}</div>)}
+      </>}
+      fields={[
+        { key: 'title', label: 'Title', wide: true, required: true },
+        { key: 'resolutionType', label: 'Kind', type: 'select', required: true, options: kinds },
+        { key: 'text', label: 'Resolution / text', type: 'textarea', wide: true },
+        ...(gm ? [{ key: 'explanatory', label: 'Explanatory statement (Sec 102)', type: 'textarea' as const, wide: true }] : []),
+        { key: 'filings', label: 'Filings to put on the calendar when passed', type: 'checks', options: (meta?.eventRules ?? []).map((r) => ({ value: r.code, label: `${r.form} — ${r.title}` })) },
+      ]}
+      onSave={(v) => api(`/meetings/${d.meeting.id}/items`, { body: { title: v.title, resolutionType: v.resolutionType, text: v.text, filings: v.filings ?? [], ...(gm ? { explanatory: v.explanatory || null } : {}) } }).then(onSaved)}
+      onClose={onClose} />
+  );
+  if (pick && pick !== 'ai') return (
     <RecordModal title={pick === 'custom' ? 'Your own agenda item' : pick.title} saveLabel="Add to agenda"
       fields={pick === 'custom'
-        ? [{ key: 'title', label: 'Title', required: true, wide: true }, { key: 'resolutionType', label: 'Kind', type: 'select', required: true, options: Object.entries(RES).filter(([k]) => d.meeting.type === 'BOARD' ? !['ORDINARY', 'SPECIAL'].includes(k) : k !== 'BOARD').map(([value, label]) => ({ value, label })) }, { key: 'text', label: 'Text', type: 'textarea', wide: true }]
+        ? [{ key: 'title', label: 'Title', required: true, wide: true }, { key: 'resolutionType', label: 'Kind', type: 'select', required: true, options: kinds }, { key: 'text', label: 'Text', type: 'textarea', wide: true }]
         : pick.person ? [{ key: 'personId', label: 'Director / KMP', type: 'select', required: true, options: d.people.map((p) => ({ value: p.id, label: `${p.name} — ${DESIGNATION[p.designation] ?? p.designation}` })), help: 'Add the person under Directors & KMP first if they’re new.' }] : []}
       extra={pick !== 'custom' ? <p className="muted small" style={{ marginTop: 0 }}>The wording is filled in from a standard draft — edit it after adding.{pick.filings.length ? ` When passed, it creates: ${pick.filings.join(', ')}.` : ''}</p> : undefined}
-      initial={{ resolutionType: d.meeting.type === 'BOARD' ? 'BOARD' : 'ORDINARY' }}
+      initial={{ resolutionType: gm ? 'ORDINARY' : 'BOARD' }}
       onSave={(v) => api(`/meetings/${d.meeting.id}/items`, { body: pick === 'custom' ? { title: v.title, resolutionType: v.resolutionType, text: v.text } : { templateKey: pick.key, personId: v.personId } }).then(onSaved)}
       onClose={onClose} />
   );
@@ -173,6 +213,7 @@ function AddItem({ d, onClose, onSaved }: { d: Detail; onClose: () => void; onSa
     <Modal title="Add an agenda item" wide onClose={onClose} footer={<button className="btn btn-secondary" onClick={onClose}>Close</button>}>
       <input autoFocus placeholder="Search: director, allotment, charge, auditor…" value={q} onChange={(e) => setQ(e.target.value)} />
       <table className="table compact" style={{ marginTop: 8 }}><tbody>
+        {ai && <tr onClick={() => setPick('ai')}><td><strong>✦ Describe it — AI drafts it</strong><span className="muted small block">Resolution{gm ? ', explanatory statement' : ''} and filings drafted from a sentence; you check before adding</span></td></tr>}
         {list.map((t) => <tr key={t.key} onClick={() => setPick(t)}><td><strong>{t.title}</strong><span className="muted small block">{RES[t.resolutionType]}{t.filings.length ? ` · creates ${t.filings.join(', ')}` : ''}{t.completes.length ? ' · completes MBP-1 / DIR-8' : ''}</span></td></tr>)}
         <tr onClick={() => setPick('custom')}><td><strong>Something else…</strong><span className="muted small block">Your own item or resolution</span></td></tr>
       </tbody></table>
@@ -216,21 +257,48 @@ function Attendance({ d, edit, onSaved }: { d: Detail; edit: boolean; onSaved: (
   );
 }
 
-function Minutes({ d, edit, onSaved }: { d: Detail; edit: boolean; onSaved: () => void }) {
+function Minutes({ d, edit, ai, onSaved }: { d: Detail; edit: boolean; ai: boolean; onSaved: () => void }) {
   const signed = d.meeting.status === 'MINUTES_SIGNED';
   const [text, setText] = useState(d.meeting.minutes ?? '');
+  const [notes, setNotes] = useState(d.meeting.notes ?? '');
+  const [check, setCheck] = useState<{ issues: Issue[]; assumptions: string[] }>();
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string }>();
   const draft = async () => {
     if (text.trim() && !window.confirm('Replace what is written with a fresh draft?')) return;
+    setCheck(undefined);
     setText((await api<{ text: string }>(`/meetings/${d.meeting.id}/minutes-draft`)).text);
   };
+  const aiDraft = async () => {
+    if (text.trim() && !window.confirm('Replace what is written with an AI draft?')) return;
+    setBusy(true); setMsg(undefined);
+    try { const r = await api<{ text: string; issues: Issue[]; assumptions: string[] }>(`/meetings/${d.meeting.id}/minutes-ai`, { body: { notes } }); setText(r.text); setCheck({ issues: r.issues, assumptions: r.assumptions }); }
+    catch (e: any) { setMsg({ kind: 'error', text: e.message }); } finally { setBusy(false); }
+  };
   const save = async () => { setMsg(undefined); try { await api(`/meetings/${d.meeting.id}/minutes`, { method: 'PUT', body: { text } }); setMsg({ kind: 'success', text: 'Minutes saved.' }); onSaved(); } catch (e: any) { setMsg({ kind: 'error', text: e.message }); } };
+  const fixes = check?.issues.filter((i) => i.level === 'fix') ?? [];
   return (
     <section className="card">
       <div className="toolbar"><h3>Minutes</h3>{signed && <span className="badge badge-approved">Signed {fmtDate(d.meeting.minutesSignedOn)}</span>}<span className="grow" />
-        {edit && !signed && <><button className="btn btn-sm btn-secondary" onClick={draft}>{text.trim() ? 'Re-draft from the meeting' : 'Draft from the meeting'}</button><button className="btn btn-sm btn-primary" onClick={save}>Save</button></>}</div>
+        {edit && !signed && <><button className="btn btn-sm btn-secondary" onClick={draft}>{text.trim() ? 'Re-draft from the agenda' : 'Draft from the agenda'}</button>
+          {ai && <button className="btn btn-sm btn-secondary" disabled={busy} onClick={aiDraft}>{busy ? 'Writing…' : '✦ Write with AI'}</button>}
+          <button className="btn btn-sm btn-primary" onClick={save}>Save</button></>}</div>
       <div className="pad stack">
-        {!signed && !text && <p className="muted small" style={{ margin: 0 }}>Record attendance and each item’s outcome, then draft the minutes — the wording comes from the agenda and you edit it here.</p>}
+        {edit && !signed && ai && (
+          <div className="field">
+            <label htmlFor="mnotes">Your notes from the meeting <span className="muted small">(for the AI draft)</span></label>
+            <textarea id="mnotes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Rough notes: what was discussed, questions raised, who presented, time the meeting ended… Notes on a single item can also go in that item (Edit)." />
+          </div>
+        )}
+        {!signed && !text && <p className="muted small" style={{ margin: 0 }}>Record attendance and each item’s outcome, then draft the minutes{ai ? ' — from the agenda, or with AI from your notes' : ' — the wording comes from the agenda'} — and edit them here.</p>}
+        {check && (
+          <div className={`ai-check ${fixes.length ? 'bad' : ''}`}>
+            <b>{fixes.length ? `${fixes.length} thing${fixes.length > 1 ? 's' : ''} to put right before saving` : 'AI draft checked against the meeting record'}</b>
+            {check.issues.map((i) => <div key={i.text} className={i.level === 'fix' ? 'overdue small' : 'warn-text small'}>{i.level === 'fix' ? '✗' : '!'} {i.text}</div>)}
+            {check.assumptions.map((a) => <div key={a} className="muted small">• To fill in: {a}</div>)}
+            {!check.issues.length && <div className="ok-text small">✓ Resolutions word for word, everyone present named, no unknown figures.</div>}
+          </div>
+        )}
         <textarea rows={signed ? 18 : 16} value={text} readOnly={signed || !edit} onChange={(e) => setText(e.target.value)} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13 }} />
         {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       </div>

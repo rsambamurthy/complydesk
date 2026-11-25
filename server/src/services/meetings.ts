@@ -4,6 +4,7 @@
  * meeting marked held ticks off its calendar item and feeds the AGM / first-board-meeting dates, and a passed
  * resolution puts its filing (DIR-12, MGT-14, PAS-3…) on the calendar dated the meeting day.
  */
+import { DESIGNATION_LABEL } from '../lib/validators.js';
 import { and, asc, desc, eq, gte, inArray, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema, HttpError, notFound } from '../lib/core.js';
@@ -16,7 +17,6 @@ import { getClient } from './clients.js';
 import type { Meeting, MeetingItem, Person } from '../db/schema.js';
 
 const { meetings: m, meetingItems: mi, meetingAttendance: ma, people, clients, obligations: o } = schema;
-const DESIGNATION: Record<string, string> = { MANAGING_DIRECTOR: 'Managing Director', WHOLE_TIME_DIRECTOR: 'Whole-time Director', CEO: 'Chief Executive Officer', CFO: 'Chief Financial Officer', CS: 'Company Secretary' };
 const TYPE_NAME: Record<MeetingType, string> = { BOARD: 'Board Meeting', AGM: 'Annual General Meeting', EGM: 'Extraordinary General Meeting' };
 const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
 
@@ -36,14 +36,16 @@ export const meetingPatch = z.object({
   title: z.string().trim().min(3).optional(), date: dateStr.optional(), time: opt.optional(), mode: z.enum(['PHYSICAL', 'VIDEO', 'HYBRID']).optional(),
   venue: opt.optional(), videoLink: opt.optional(), shorterNotice: z.boolean().optional(), chairpersonId: opt.optional(),
   membersPresent: z.coerce.number().int().min(0).max(100000).nullish(),
+  notes: z.string().max(20000).nullish(),
 });
-export const itemInput = z.object({ templateKey: opt, title: opt, text: opt, personId: opt, resolutionType: z.enum(['NONE', 'BOARD', 'ORDINARY', 'SPECIAL']).optional() })
+export const itemInput = z.object({ templateKey: opt, title: opt, text: opt, personId: opt, resolutionType: z.enum(['NONE', 'BOARD', 'ORDINARY', 'SPECIAL']).optional(), filings: z.array(z.string()).max(6).optional(), explanatory: z.string().max(8000).nullish() })
   .refine((v) => v.templateKey || v.title, { message: 'Pick an item or type a title', path: ['title'] });
 export const itemPatch = z.object({
   title: z.string().trim().min(2).optional(), text: z.string().nullish(), personId: opt.optional(),
   resolutionType: z.enum(['NONE', 'BOARD', 'ORDINARY', 'SPECIAL']).optional(),
   filings: z.array(z.string()).optional(),
   outcome: z.enum(['PENDING', 'PASSED', 'NOT_PASSED', 'NOTED', 'DEFERRED']).optional(),
+  notes: z.string().max(8000).nullish(), explanatory: z.string().max(8000).nullish(),
 });
 export const attendanceInput = z.array(z.object({ personId: z.string(), status: z.enum(['PRESENT', 'VIDEO', 'LEAVE', 'ABSENT']) }));
 
@@ -132,21 +134,28 @@ async function assertPerson(clientId: string, personId: string) {
   return p;
 }
 
+/** Filings an item puts on the calendar must be event-based rules. */
+async function assertEventFilings(filings: string[]) {
+  const events = new Set((await db.select({ code: schema.rules.code, due: schema.rules.due }).from(schema.rules)).filter((r) => (r.due as any).kind === 'AFTER_EVENT').map((r) => r.code));
+  if (filings.some((f) => !events.has(f))) throw new HttpError(400, 'Pick event-based filings only', { filings: 'Unknown filing' });
+}
+
 export async function addItem(tenantId: string, meetingId: string, input: z.output<typeof itemInput>) {
   const meeting = await getMeeting(tenantId, meetingId);
+  if (input.filings?.length) await assertEventFilings(input.filings);
   const client = await getClient(tenantId, meeting.clientId);
   const t = input.templateKey ? templateByKey(input.templateKey) : undefined;
   if (input.templateKey && !t) throw new HttpError(400, 'Unknown agenda item');
   if (t?.person && !input.personId) throw new HttpError(400, 'Pick the director or KMP this is about', { personId: 'Required' });
   const person = input.personId ? await assertPerson(meeting.clientId, input.personId) : null;
   const [{ n }] = await db.select({ n: sql<number>`coalesce(max(${mi.seq}), 0)::int` }).from(mi).where(eq(mi.meetingId, meetingId));
-  const vars = { company: client.name, person: person?.name, designation: person ? DESIGNATION[person.designation] ?? 'Director' : null, date: meeting.date, fy: fyLabel(meeting.fy) };
+  const vars = { company: client.name, person: person?.name, designation: person ? DESIGNATION_LABEL[person.designation] ?? 'Director' : null, date: meeting.date, fy: fyLabel(meeting.fy) };
   const [x] = await db.insert(mi).values({
     meetingId, seq: n + 1, templateKey: t?.key ?? null,
     title: input.title ?? (t ? t.title + (person ? ` — ${person.name}` : '') : 'Item'),
     resolutionType: input.resolutionType ?? t?.resolutionType ?? 'NONE',
     text: input.text ?? (t ? fill(t.text, vars) : null), personId: person?.id ?? null,
-    filings: t?.filings ?? [], completes: t?.completes ?? [],
+    filings: t?.filings ?? input.filings ?? [], completes: t?.completes ?? [], explanatory: input.explanatory ?? null,
   }).returning();
   return x;
 }
@@ -161,10 +170,7 @@ export async function updateItem(tenantId: string, itemId: string, patch: z.outp
   const { i, meeting } = await getItem(tenantId, itemId);
   if (meeting.status === 'MINUTES_SIGNED' && (patch.outcome || patch.filings)) throw new HttpError(400, 'Minutes are signed: outcomes can’t be changed.');
   if (patch.personId) await assertPerson(meeting.clientId, patch.personId);
-  if (patch.filings) {
-    const events = new Set((await db.select({ code: schema.rules.code, due: schema.rules.due }).from(schema.rules)).filter((r) => (r.due as any).kind === 'AFTER_EVENT').map((r) => r.code));
-    if (patch.filings.some((f) => !events.has(f))) throw new HttpError(400, 'Pick event-based filings only', { filings: 'Unknown filing' });
-  }
+  if (patch.filings) await assertEventFilings(patch.filings);
   const [x] = await db.update(mi).set(patch).where(eq(mi.id, itemId)).returning();
   if (meeting.heldOn && (patch.outcome || patch.filings || patch.personId !== undefined)) await applyOutcome(tenantId, meeting, x);
   return x;

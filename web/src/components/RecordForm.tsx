@@ -89,16 +89,18 @@ export function Fields({ fields, form, check }: { fields: FieldDef[]; form: Retu
 }
 
 /** A modal with a record form: Save calls onSave(values); closes on success. */
-export function RecordModal({ title, fields, initial, onSave, onClose, saveLabel = 'Save', extra, danger }: {
+export function RecordModal({ title, fields, initial, onSave, onClose, saveLabel = 'Save', extra, danger, keepOpen }: {
   title: string; fields: FieldDef[]; initial: Record<string, any>; onSave: (v: Record<string, any>) => Promise<unknown>; onClose: () => void;
   saveLabel?: string; extra?: ReactNode; danger?: { label: string; onClick: () => Promise<unknown> };
+  /** Stay open after a successful save (a step that leads to another form). */
+  keepOpen?: boolean;
 }) {
   const form = useRecordForm(initial);
   return (
     <Modal title={title} wide onClose={onClose} footer={<>
       {danger && <button className="btn btn-danger-ghost" style={{ marginInlineEnd: 'auto' }} disabled={form.busy} onClick={() => form.submit(danger.onClick).then((ok) => ok && onClose())}>{danger.label}</button>}
       <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-      <button className="btn btn-primary" disabled={form.busy} onClick={async () => { if (await form.submit(onSave)) onClose(); }}>{saveLabel}</button>
+      <button className="btn btn-primary" disabled={form.busy} onClick={async () => { if (await form.submit(onSave) && !keepOpen) onClose(); }}>{saveLabel}</button>
     </>}>
       {form.error && <Alert kind="error">{form.error}</Alert>}
       {extra}
