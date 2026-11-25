@@ -15,6 +15,7 @@ import { obligationsRouter } from './routes/obligations.js';
 import { adminRouter } from './routes/admin.js';
 import { importRouter } from './routes/import.js';
 import { extractRouter } from './routes/extract.js';
+import { helpRouter } from './routes/help.js';
 import { extRouter, extTokensRouter, extDownload } from './routes/ext.js';
 import { requireExtension } from './auth/session.js';
 
@@ -53,6 +54,8 @@ export function createApp() {
   }, requireExtension, extRouter);
   app.use('/api/auth/extension-tokens', requireStaff, extTokensRouter);
   app.get('/api/extension.zip', ...extDownload);
+  // Help works in a read-only workspace too (asking logs a question, it changes no records).
+  app.use('/api/help', requireStaff, helpRouter);
   app.use('/api/extract', requireStaff, requireWritable, extractRouter);
   app.use('/api/admin', requireStaff, requireWritable, adminRouter);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'No such API')));

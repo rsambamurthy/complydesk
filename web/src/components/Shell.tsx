@@ -1,6 +1,7 @@
 /** The signed-in frame: VendorGate's AppFrame (same sidebar, top bar and groups) with this product's menu. */
 import { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { HelpAssistant, useHelpIndex } from './HelpAssistant';
 import { api } from '../lib/api';
 import { AppFrame, type FrameEntry, type FrameGroup, type FrameLink } from './AppFrame';
 import { NavIcon } from './NavIcon';
@@ -12,6 +13,7 @@ type L = FrameLink & { show: boolean };
 export function Shell() {
   const { me, can, signOut } = useSession();
   const nav = useNavigate();
+  const [help, setHelp] = useState(false);
   if (!me) return null;
   const keep = (items: L[]) => items.filter((i) => i.show).map(({ show: _s, ...l }) => l);
   const group = (key: string, label: string, icon: string, items: L[]): FrameGroup | null => { const k = keep(items); return k.length ? { key, label, icon, items: k } : null; };
@@ -36,6 +38,7 @@ export function Shell() {
       { to: '/admin/users', label: 'Users', icon: 'users', show: can('users.manage') },
       { to: '/admin/audit', label: 'Audit log', icon: 'audit', show: can('audit.view') },
     ]),
+    ...keep([{ to: '/help', label: 'Help', icon: 'help', show: true }]),
   ].filter(Boolean) as FrameEntry[];
   const initials = me.user.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
   return (
@@ -46,13 +49,34 @@ export function Shell() {
       entries={entries}
       navLabel="Navigation"
       menuLabels={{ open: 'Open menu', close: 'Close menu', collapse: 'Collapse sidebar', expand: 'Expand sidebar' }}
-      actions={<button className="af-hbtn" onClick={async () => { await signOut(); nav('/login'); }} title="Sign out" aria-label="Sign out"><NavIcon name="logout" size={18} /></button>}
+      actions={<><button className="af-hbtn" onClick={() => setHelp((v) => !v)} title="Help — ask a question" aria-label="Help" aria-expanded={help}><NavIcon name="help" size={18} /></button><button className="af-hbtn" onClick={async () => { await signOut(); nav('/login'); }} title="Sign out" aria-label="Sign out"><NavIcon name="logout" size={18} /></button></>}
       user={{ initials, name: me.user.name, role: me.roles.map((r) => r.name).join(', ') || 'No role' }}
       sideFoot={<PoweredBy />}
     >
       <AccessBar />
       <Outlet />
+      {help && <HelpDrawer onClose={() => setHelp(false)} />}
     </AppFrame>
+  );
+}
+
+/** The "?" drawer: the assistant, knowing which page the user is on, and a link to that page's manual section. */
+function HelpDrawer({ onClose }: { onClose: () => void }) {
+  const { pathname } = useLocation();
+  const idx = useHelpIndex(pathname);
+  const here = idx?.pageSection && idx.sections.find((s) => s.id === idx.pageSection);
+  return (
+    <aside className="help-drawer" role="dialog" aria-label="Help">
+      <div className="help-drawer-head">
+        <b>Ask ComplyDesk</b>
+        <button className="af-hbtn" onClick={onClose} aria-label="Close help">✕</button>
+      </div>
+      <div className="help-drawer-links small">
+        {here && <Link to={`/help/${here.id}?from=${encodeURIComponent(pathname)}`} onClick={onClose}>Help for this page: {here.title.replace(/^\d+\.\s*/, '')}</Link>}
+        <Link to={`/help?from=${encodeURIComponent(pathname)}`} onClick={onClose}>Open the user manual</Link>
+      </div>
+      <HelpAssistant key={pathname} page={pathname} index={idx} onOpenSection={onClose} />
+    </aside>
   );
 }
 

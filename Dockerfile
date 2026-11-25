@@ -19,6 +19,7 @@ COPY --from=build /app/server/dist server/dist
 COPY --from=build /app/server/drizzle server/drizzle
 COPY --from=build /app/web/dist web/dist
 COPY --from=build /app/extension extension
+COPY --from=build /app/help help
 ENV MIGRATE_ON_START=true PORT=4000
 USER node
 EXPOSE 4000

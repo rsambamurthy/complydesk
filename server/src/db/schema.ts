@@ -459,3 +459,21 @@ export const apiTokens = pgTable('api_tokens', {
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('api_tokens_hash_uq').on(t.tokenHash)]);
+
+/** Questions asked of the help assistant — answers, the manual sections used, and the user's thumbs up/down (to improve the manual). */
+export const helpQuestions = pgTable('help_questions', {
+  id: id(),
+  tenantId: tenantId(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  page: text('page'),
+  question: text('question').notNull(),
+  answer: text('answer').notNull(),
+  sections: jsonb('sections').$type<string[]>().notNull().default([]),
+  /** false when the manual didn't cover the question */
+  covered: boolean('covered').notNull().default(true),
+  helpful: boolean('helpful'),
+  model: text('model'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  createdAt: createdAt(),
+}, (t) => [index('help_questions_tenant_ix').on(t.tenantId, t.createdAt)]);

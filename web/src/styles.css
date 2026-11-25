@@ -987,3 +987,30 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
   .af-header, .af-side, .head-actions, .btn { display: none !important; }
   .page { padding: 0 !important; }
 }
+
+/* Help: manual pages, the assistant, the "?" drawer */
+.md p { margin: 0 0 10px; line-height: 1.55; } .md ul, .md ol { margin: 0 0 10px; padding-inline-start: 20px; display: grid; gap: 4px; }
+.md h3, .md h4 { margin: 18px 0 8px; } .md code { background: var(--brand-50); padding: 1px 5px; border-radius: 4px; font-size: .92em; }
+.md-table { overflow-x: auto; margin-bottom: 12px; } .md-table .table tbody tr { cursor: default; } .md-table td, .md-table th { vertical-align: top; }
+.md-fig { margin: 12px 0 16px; } .md-fig img { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.md-fig figcaption { font-size: 12.5px; color: var(--muted); font-style: italic; margin-top: 6px; }
+.help-grid { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .help-grid { grid-template-columns: 1fr; } }
+.help-toc { position: sticky; top: 76px; max-height: calc(100vh - 100px); overflow: auto; }
+.help-toc nav { display: grid; gap: 2px; margin-top: 10px; } .help-toc nav a { display: block; padding: 6px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; font-size: 13.5px; }
+.help-toc nav a:hover { background: var(--brand-50); } .help-toc nav a.on { background: var(--brand-50); color: var(--brand); font-weight: 600; }
+.help-toc nav a.sub { padding-inline-start: 20px; font-size: 13px; }
+.help-search { width: 100%; } .help-hits { display: grid; gap: 8px; margin-top: 10px; } .help-hits a { display: grid; gap: 2px; text-decoration: none; color: var(--ink); padding: 6px; border-radius: 6px; } .help-hits a:hover { background: var(--brand-50); }
+.help-article h3 { margin-top: 22px; } .help-pager { display: flex; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 18px; padding-top: 12px; }
+.ha { display: grid; gap: 10px; } .ha-log { display: grid; gap: 10px; align-content: start; max-height: 55vh; overflow: auto; }
+.ha-intro p { margin: 0 0 8px; color: var(--muted); } .ha-sugs { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { border: 1px solid var(--brand-100); background: #fff; color: var(--brand); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; text-align: start; } .chip-btn:hover { background: var(--brand-50); }
+.ha-msg { padding: 10px 12px; border-radius: 10px; max-width: 92%; } .ha-msg p:last-child, .ha-msg ul:last-child, .ha-msg ol:last-child { margin-bottom: 0; }
+.ha-msg.user { justify-self: end; background: var(--brand); color: #fff; } .ha-msg.user p { margin: 0; }
+.ha-msg.assistant { justify-self: start; background: var(--brand-50); border: 1px solid var(--brand-100); } .ha-msg.err { background: #fff4f4; border-color: #f3c7c7; }
+.ha-meta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 8px; border-top: 1px dashed var(--brand-100); padding-top: 6px; }
+.ha-ask { display: flex; gap: 8px; } .ha-ask input { flex: 1; } .ha-clear { justify-self: start; }
+.help-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); background: #fff; border-inline-start: 1px solid var(--line); box-shadow: -8px 0 30px rgba(0,0,0,.12); z-index: 60; display: grid; grid-template-rows: auto auto 1fr; gap: 10px; padding: 14px 16px; }
+.help-drawer-head { display: flex; justify-content: space-between; align-items: center; font-size: 16px; } .help-drawer-head .af-hbtn { color: var(--ink); }
+.help-drawer-links { display: grid; gap: 4px; } .help-drawer .ha { grid-template-rows: 1fr auto auto; min-height: 0; } .help-drawer .ha-log { max-height: none; overflow: auto; }
+@media print { .help-drawer { display: none; } }

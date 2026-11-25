@@ -1,5 +1,6 @@
 /** Integrata platform console: every workspace, approvals, trials, platform settings. Platform admins only. */
 import { Router } from 'express';
+import { recentQuestions } from '../services/help.js';
 import { h } from '../lib/core.js';
 import { requirePlatformAdmin } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
@@ -15,6 +16,7 @@ platformRouter.get('/settings', h(async (_req, res) => res.json({ ...(await getS
 platformRouter.put('/settings', h(async (req, res) => res.json(await updateSettings(parse(settingsInput, req.body)))));
 platformRouter.get('/tenants', h(async (_req, res) => res.json(await tenantList())));
 platformRouter.post('/tenants/:id', h(async (req, res) => res.json(await applyTenantAction(req.params.id, parse(tenantAction, req.body), req.staff!.user.email))));
+platformRouter.get('/help-questions', h(async (req, res) => res.json(await recentQuestions({ onlyGaps: req.query.gaps === '1' }))));
 platformRouter.get('/events', h(async (_req, res) => res.json(await platformEventsList())));
 
 // Built-in rules for every firm (a firm's own change to a rule still wins for that firm).
