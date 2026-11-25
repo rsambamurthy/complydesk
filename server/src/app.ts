@@ -15,6 +15,8 @@ import { obligationsRouter } from './routes/obligations.js';
 import { adminRouter } from './routes/admin.js';
 import { importRouter } from './routes/import.js';
 import { extractRouter } from './routes/extract.js';
+import { extRouter, extTokensRouter, extDownload } from './routes/ext.js';
+import { requireExtension } from './auth/session.js';
 
 export function createApp() {
   const app = express();
@@ -36,6 +38,21 @@ export function createApp() {
   app.use('/api/import', requireStaff, requireWritable, importRouter);
   app.use('/api/meetings', requireStaff, requireWritable, meetingsRouter);
   app.use('/api/files', requireStaff, requireWritable, filesRouter);
+  // The browser extension calls from its own origin with a Bearer token (no cookies): allow it, read-only.
+  app.use('/api/ext', (req, res, next) => {
+    const origin = req.get('origin') ?? '';
+    if (origin.startsWith('chrome-extension://') || (!env.isProd && /^http:\/\/localhost(:\d+)?$/.test(origin))) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Vary', 'Origin');
+    }
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  }, requireExtension, extRouter);
+  app.use('/api/auth/extension-tokens', requireStaff, extTokensRouter);
+  app.get('/api/extension.zip', ...extDownload);
   app.use('/api/extract', requireStaff, requireWritable, extractRouter);
   app.use('/api/admin', requireStaff, requireWritable, adminRouter);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'No such API')));

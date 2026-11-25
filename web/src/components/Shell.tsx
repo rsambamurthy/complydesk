@@ -20,6 +20,7 @@ export function Shell() {
       { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', show: can('clients.view') },
       { to: '/calendar', label: 'Compliance calendar', icon: 'calendar', show: can('clients.view') },
       { to: '/meetings', label: 'Meetings', icon: 'meeting', show: can('clients.view') },
+      { to: '/extension', label: 'MCA form filler', icon: 'upload', show: can('compliance.work') && !me?.user.clientIds.length },
     ]),
     group('clients', 'Clients', 'clients', [
       { to: '/clients', label: 'All clients', icon: 'clients', end: true, show: can('clients.view') },

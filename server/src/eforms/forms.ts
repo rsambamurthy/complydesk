@@ -22,21 +22,21 @@ const person = (c: FormCtx) => c.people.find((p) => p.id === c.ob.personId) ?? n
 
 // ---- Shared field groups ----------------------------------------------------------------------------------------
 const company = (extra: FieldSpec[] = []): FieldSpec[] => [
-  { key: 'cin', label: 'Corporate Identity Number (CIN)', value: (c) => c.client.cin, help: 'Enter it first — the portal pre-fills the registration details from it.' },
-  { key: 'pan', label: 'PAN of the company', input: { scope: 'client' } },
-  { key: 'name', label: 'Name of the company', value: (c) => c.client.name },
-  { key: 'regOffice', label: 'Registered office address', value: (c) => c.client.registeredOffice, fixAt: 'details' },
-  { key: 'email', label: 'Email ID of the company', value: (c) => c.client.email, fixAt: 'details' },
+  { key: 'cin', label: 'Corporate Identity Number (CIN)', aliases: ['CIN', 'Corporate Identification Number', 'CIN of the company'], value: (c) => c.client.cin, help: 'Enter it first — the portal pre-fills the registration details from it.' },
+  { key: 'pan', label: 'PAN of the company', aliases: ['Permanent Account Number (PAN) of the company', 'Income-tax PAN'], input: { scope: 'client' } },
+  { key: 'name', label: 'Name of the company', aliases: ['Company name'], value: (c) => c.client.name },
+  { key: 'regOffice', label: 'Registered office address', aliases: ['Address of the registered office of the company'], value: (c) => c.client.registeredOffice, fixAt: 'details' },
+  { key: 'email', label: 'Email ID of the company', aliases: ['Email address of the company', 'Email ID'], value: (c) => c.client.email, fixAt: 'details' },
   ...extra,
 ];
 const fyFields = (): FieldSpec[] => [
-  { key: 'fyFrom', label: 'Financial year — from', value: (c) => fmt(fyStart(c.ob.fy)) },
-  { key: 'fyTo', label: 'Financial year — to', value: (c) => fmt(fyEnd(c.ob.fy)) },
+  { key: 'fyFrom', label: 'Financial year — from', aliases: ['Financial year from date', 'From date'], value: (c) => fmt(fyStart(c.ob.fy)) },
+  { key: 'fyTo', label: 'Financial year — to', aliases: ['Financial year to date', 'To date'], value: (c) => fmt(fyEnd(c.ob.fy)) },
 ];
 const capital = (): FieldSpec[] => [
-  { key: 'authAmt', label: 'Authorised capital (₹)', value: (c) => num(c.client.authorisedCapital), fixAt: 'details' },
+  { key: 'authAmt', label: 'Authorised capital (₹)', aliases: ['Total amount of authorised capital'], value: (c) => num(c.client.authorisedCapital), fixAt: 'details' },
   { key: 'authShares', label: 'Authorised — number of equity shares', value: (c) => { const fv = faceValue(c); return fv && c.client.authorisedCapital ? num(Number(c.client.authorisedCapital) / fv) : null; }, fixAt: 'details' },
-  { key: 'paidShares', label: 'Issued / subscribed / paid-up — number of shares', value: (c) => (c.shareholders.length ? num(totalShares(c)) : null), fixAt: 'shareholders' },
+  { key: 'paidShares', label: 'Issued / subscribed / paid-up — number of shares', aliases: ['Total number of equity shares', 'Number of paid up equity shares'], value: (c) => (c.shareholders.length ? num(totalShares(c)) : null), fixAt: 'shareholders' },
   { key: 'faceValue', label: 'Nominal value per share (₹)', value: (c) => faceValue(c), fixAt: 'shareholders' },
   { key: 'paidAmt', label: 'Paid-up capital (₹)', value: (c) => num(c.client.paidUpCapital), fixAt: 'details' },
 ];
@@ -55,7 +55,7 @@ const annualReturn = (form: 'MGT-7' | 'MGT-7A'): FormSpec => ({
     return [
       { title: 'I. Registration and other details', fields: [
         ...company([
-          { key: 'phone', label: 'Telephone number with STD code', input: { scope: 'client' } },
+          { key: 'phone', label: 'Telephone number with STD code', aliases: ['Phone number', 'Telephone number'], input: { scope: 'client' } },
           { key: 'website', label: 'Website', input: { scope: 'client' }, optional: true },
         ]),
         { key: 'incDate', label: 'Date of incorporation', value: (c) => fmt(c.client.incorporationDate), fixAt: 'details' },
@@ -63,8 +63,8 @@ const annualReturn = (form: 'MGT-7' | 'MGT-7A'): FormSpec => ({
         { key: 'category', label: 'Category / sub-category', value: () => 'Company limited by shares / Indian Non-Government company', help: 'Change on the form if different.' },
         { key: 'listed', label: 'Whether shares listed on a stock exchange', value: () => 'No' },
         ...fyFields(),
-        { key: 'agmHeld', label: 'Whether AGM held', value: (c) => (agmOf(c, c.ob.fy) ? 'Yes' : null), fixAt: 'year', show: () => form === 'MGT-7' || c.client.companyType !== 'OPC' },
-        { key: 'agmDate', label: 'Date of AGM', value: (c) => fmt(agmOf(c, c.ob.fy)), fixAt: 'year', show: () => c.client.companyType !== 'OPC' },
+        { key: 'agmHeld', label: 'Whether AGM held', aliases: ['Whether annual general meeting (AGM) held'], value: (c) => (agmOf(c, c.ob.fy) ? 'Yes' : null), fixAt: 'year', show: () => form === 'MGT-7' || c.client.companyType !== 'OPC' },
+        { key: 'agmDate', label: 'Date of AGM', aliases: ['Date of annual general meeting', 'AGM date'], value: (c) => fmt(agmOf(c, c.ob.fy)), fixAt: 'year', show: () => c.client.companyType !== 'OPC' },
         { key: 'agmDue', label: 'Due date of AGM', value: (c) => fmt(agmDue(c, c.ob.fy)), show: () => c.client.companyType !== 'OPC' },
         { key: 'agmExtension', label: 'Whether any extension for AGM granted', input: { scope: 'filing', type: 'select', options: ['No', 'Yes'], default: 'No' }, show: () => c.client.companyType !== 'OPC' },
       ] },
@@ -131,7 +131,7 @@ const aoc4: FormSpec = {
       { title: 'Part A — company and meeting details', fields: [
         ...company(), ...fyFields(),
         { key: 'boardDate', label: 'Date of board meeting approving the financial statements', input: { scope: 'filing', type: 'date' } },
-        { key: 'agmDate', label: 'Date of AGM', value: (c) => fmt(agmOf(c, c.ob.fy)), fixAt: 'year', show: () => c.client.companyType !== 'OPC' },
+        { key: 'agmDate', label: 'Date of AGM', aliases: ['Date of annual general meeting', 'AGM date'], value: (c) => fmt(agmOf(c, c.ob.fy)), fixAt: 'year', show: () => c.client.companyType !== 'OPC' },
         { key: 'agmDue', label: 'Due date of AGM', value: (c) => fmt(agmDue(c, c.ob.fy)), show: () => c.client.companyType !== 'OPC' },
       ] },
       { title: 'Auditor', fields: [

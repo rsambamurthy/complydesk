@@ -59,6 +59,7 @@ export function FormPack() {
         <div className="head-actions">
           <a className="btn btn-secondary" href={`/api/obligations/${ob.id}/form.xlsx`}>Download Excel</a>
           <button className="btn btn-secondary" onClick={() => window.print()}>Print</button>
+          <Link className="btn btn-secondary" to="/extension" title="Fill the MCA portal form from this data">Fill on MCA with the extension</Link>
           {editable && <button className="btn btn-primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Saving…' : saved ? 'Saved' : 'Save values'}</button>}
         </div>
       </div>

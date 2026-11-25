@@ -447,3 +447,15 @@ export const filingChecks = pgTable('filing_checks', {
   userName: text('user_name'),
   createdAt: createdAt(),
 }, (t) => [index('filing_checks_ob_ix').on(t.obligationId, t.createdAt)]);
+
+/** Connections of the ComplyDesk browser extension (one per browser), per user. Token shown once; stored as sha256. */
+export const apiTokens = pgTable('api_tokens', {
+  id: id(),
+  tenantId: tenantId(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('api_tokens_hash_uq').on(t.tokenHash)]);

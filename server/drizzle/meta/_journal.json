@@ -57,6 +57,13 @@
       "when": 1795623511081,
       "tag": "0007_round_mesmero",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795624642181,
+      "tag": "0008_grey_zombie",
+      "breakpoints": true
     }
   ]
 }

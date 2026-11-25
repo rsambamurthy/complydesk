@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- A stand-in for an MCA V3 web form (labels in the form's wording, Angular-like inputs). For testing the extension only. -->
+<html><head><meta charset="utf-8"><title>MCA — Form MGT-7</title>
+<style>
+body{font:14px Arial,sans-serif;margin:0;background:#f2f2f2}
+.top{background:#1b3c6b;color:#fff;padding:10px 16px;font-weight:bold}
+.wrap{padding:14px 18px}
+h2{font-size:16px;color:#1b3c6b;border-bottom:2px solid #1b3c6b;padding-bottom:4px}
+.r{display:grid;grid-template-columns:420px 300px;gap:10px;align-items:center;margin:8px 0}
+.lbl{font-size:13px;color:#222}
+input,select{padding:6px;border:1px solid #999;border-radius:3px;font:13px Arial}
+input[readonly]{background:#e8e8e8}
+table{border-collapse:collapse} td{padding:6px 8px;border:1px solid #ccc;background:#fff;font-size:13px}
+</style></head>
+<body><div class="top">Ministry of Corporate Affairs — MCA21 V3 · Form MGT-7 (Annual Return)</div>
+<div class="wrap">
+<h2>I. Registration and other details</h2>
+<div class="r"><div class="lbl">(i) *Corporate Identity Number (CIN) of the company</div><div><input id="f1" ng-model="cin"> <button>Pre-fill</button></div></div>
+<div class="r"><div class="lbl">*Permanent Account Number (PAN) of the company</div><input id="f2"></div>
+<div class="r"><div class="lbl">(ii) (a) Name of the company</div><input id="f3" readonly value="KAVERI SOFTWARE PRIVATE LIMITED"></div>
+<div class="r"><div class="lbl">(c) *e-mail ID of the company</div><input id="f4"></div>
+<div class="r"><div class="lbl">(d) *Telephone number with STD code</div><input id="f5"></div>
+<div class="r"><div class="lbl">(e) Website</div><input id="f6"></div>
+<div class="r"><div class="lbl">(vi) *Financial year From date</div><input id="f7" placeholder="DD/MM/YYYY"></div>
+<div class="r"><div class="lbl">*To date</div><input id="f8" placeholder="DD/MM/YYYY"></div>
+<div class="r"><div class="lbl">(viii) (a) *Whether Annual general meeting (AGM) held</div><select id="f9"><option value="">Select</option><option value="Y">Yes</option><option value="N">No</option></select></div>
+<div class="r"><div class="lbl">(b) If yes, date of AGM</div><input id="f10" placeholder="DD/MM/YYYY"></div>
+<div class="r"><div class="lbl">(c) Due date of AGM</div><input id="f11" placeholder="DD/MM/YYYY"></div>
+<div class="r"><div class="lbl">(d) Whether any extension for AGM granted</div><select id="f12"><option value="">Select</option><option>Yes</option><option>No</option></select></div>
+<h2>II. Principal business activities of the company</h2>
+<table><tr><td>Main Activity group code</td><td>Description of Main Activity group</td><td>Business Activity Code</td><td>Description of Business Activity</td><td>% of turnover of the company</td></tr>
+<tr><td><input id="g1" aria-label="Main Activity group code"></td><td><input id="g2" aria-label="Description of Main Activity group"></td><td><input id="g3" aria-label="Business Activity Code"></td><td><input id="g4" aria-label="Description of Business Activity"></td><td><input id="g5" aria-label="% of turnover of the company"></td></tr></table>
+<h2>IV. Share capital</h2>
+<div class="r"><div class="lbl">Total amount of authorised capital (in Rs.)</div><input id="h1"></div>
+<div class="r"><div class="lbl">Total number of equity shares — paid up capital</div><input id="h2"></div>
+<div class="r"><div class="lbl">*Turnover</div><input id="h3"></div>
+<div class="r"><div class="lbl">*Net worth of the Company</div><input id="h4"></div>
+</div>
+<script>
+// Like Angular: the model only updates on input events.
+const model = {}; document.querySelectorAll('input,select').forEach(el => el.addEventListener('input', () => model[el.id] = el.value));
+document.querySelectorAll('select').forEach(el => el.addEventListener('change', () => model[el.id] = el.value));
+window.formModel = model;
+</script>
+</body></html>

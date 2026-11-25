@@ -23,6 +23,8 @@ export interface FormCtx {
 export type Scope = 'client' | 'filing';
 export interface FieldSpec {
   key: string; label: string; help?: string; optional?: boolean;
+  /** Other wordings of this field on the MCA portal — the browser extension matches fields by label. */
+  aliases?: string[];
   /** Computed from the records; return null when the records don't have it. */
   value?: (c: FormCtx) => string | number | null | undefined;
   /** Typed by the user: kept on the client (reused every year) or on this filing. */
@@ -35,7 +37,7 @@ export interface TableSpec { key: string; title: string; columns: string[]; rows
 export interface PartSpec { title: string; fields?: FieldSpec[]; tables?: TableSpec[] }
 export interface FormSpec { form: string; title: string; note?: string; parts: (c: FormCtx) => PartSpec[]; attachments: (c: FormCtx) => { name: string; why?: string }[] }
 
-export interface BuiltField { key: string; label: string; value: string | null; source: 'records' | 'client' | 'filing'; missing: boolean; optional: boolean; help?: string; fixAt?: string; input?: FieldSpec['input'] }
+export interface BuiltField { key: string; label: string; aliases?: string[]; value: string | null; source: 'records' | 'client' | 'filing'; missing: boolean; optional: boolean; help?: string; fixAt?: string; input?: FieldSpec['input'] }
 export interface Built {
   form: string; title: string; note?: string;
   parts: { title: string; fields: BuiltField[]; tables: { key: string; title: string; columns: string[]; rows: (string | number | null)[][]; empty: string }[] }[];
@@ -55,7 +57,7 @@ export function buildForm(spec: FormSpec, c: FormCtx): Built {
       const value = f.input ? str(store[f.key]) ?? str(f.input.default) : str(f.value?.(c));
       const isMissing = value === null && !f.optional;
       if (!f.optional) { total++; if (isMissing) missing.push(f.label); else filled++; }
-      return { key: f.key, label: f.label, value, source: f.input ? f.input.scope : 'records', missing: isMissing, optional: !!f.optional, help: f.help, fixAt: f.fixAt, input: f.input };
+      return { key: f.key, label: f.label, aliases: f.aliases, value, source: f.input ? f.input.scope : 'records', missing: isMissing, optional: !!f.optional, help: f.help, fixAt: f.fixAt, input: f.input };
     }),
     tables: (p.tables ?? []).map((t) => ({ key: t.key, title: t.title, columns: t.columns, rows: t.rows(c), empty: t.empty })),
   }));

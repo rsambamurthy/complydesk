@@ -4,13 +4,13 @@
  * client users to their own companies.
  */
 import type { NextFunction, Request, Response } from 'express';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db, schema, env, randomToken, sha256, HttpError } from '../lib/core.js';
 import type { Permission } from '../lib/permissions.js';
 import type { Tenant, User } from '../db/schema.js';
 import { accessState, getSettings, isPlatformAdmin, type AccessState } from '../services/platform.js';
 
-const { sessions, tenants, users, userRoles, roles } = schema;
+const { sessions, tenants, users, userRoles, roles, apiTokens } = schema;
 export const COOKIE = 'cd_s';
 const HOURS = 12;
 
@@ -44,6 +44,12 @@ export async function loadStaff(req: Request): Promise<StaffCtx | null> {
     .innerJoin(tenants, eq(tenants.id, sessions.tenantId)).innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.tokenHash, sha256(token)), gt(sessions.expiresAt, new Date())));
   if (!row || row.u.status !== 'ACTIVE') return null;
+  return staffFor(row.s.id, row.t, row.u);
+}
+
+/** The signed-in context for a user (shared by cookie sessions and extension tokens). */
+export async function staffFor(sessionId: string, tenant: Tenant, u: User): Promise<StaffCtx> {
+  const row = { s: { id: sessionId }, t: tenant, u };
   const rs = await db.select({ id: roles.id, key: roles.key, name: roles.name, permissions: roles.permissions })
     .from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(eq(userRoles.userId, row.u.id));
   return {
@@ -90,4 +96,24 @@ export function requireWritable(req: Request, _res: Response, next: NextFunction
 export function requirePlatformAdmin(req: Request, _res: Response, next: NextFunction) {
   if (!req.staff?.platformAdmin) return next(new HttpError(403, 'Integrata platform admins only'));
   next();
+}
+
+/**
+ * Browser-extension token (Authorization: Bearer cdx_…): only for /api/ext, read-only form data.
+ * Created and revoked by the user in ComplyDesk; stored as sha256.
+ */
+export async function requireExtension(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const m = /^Bearer (cdx_[A-Za-z0-9_-]{20,})$/.exec(req.get('authorization') ?? '');
+    if (!m) return next(new HttpError(401, 'Connect the extension to ComplyDesk first'));
+    const [row] = await db.select({ k: apiTokens, t: tenants, u: users }).from(apiTokens)
+      .innerJoin(tenants, eq(tenants.id, apiTokens.tenantId)).innerJoin(users, eq(users.id, apiTokens.userId))
+      .where(and(eq(apiTokens.tokenHash, sha256(m[1])), isNull(apiTokens.revokedAt)));
+    if (!row || row.u.status !== 'ACTIVE') return next(new HttpError(401, 'This connection was removed — connect again'));
+    const s = await staffFor(`token:${row.k.id}`, row.t, row.u);
+    if (!s.access.ok && !s.platformAdmin) return next(new HttpError(403, (s.access as any).message ?? 'Workspace not active'));
+    if (s.user.clientIds.length) return next(new HttpError(403, 'The extension is for firm staff'));
+    if (!row.k.lastUsedAt || Date.now() - row.k.lastUsedAt.getTime() > 3600_000) await db.update(apiTokens).set({ lastUsedAt: new Date() }).where(eq(apiTokens.id, row.k.id));
+    req.staff = s; next();
+  } catch (e) { next(e); }
 }

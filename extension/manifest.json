@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "ComplyDesk — MCA form filler",
+  "version": "0.1.0",
+  "description": "Fills MCA V3 web forms from ComplyDesk's form data. You check, sign with DSC and submit on the portal — the extension never submits.",
+  "action": { "default_title": "ComplyDesk", "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" } },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "panel.html" },
+  "permissions": ["sidePanel", "storage", "scripting", "tabs"],
+  "host_permissions": ["https://*.mca.gov.in/*"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*"],
+  "minimum_chrome_version": "116"
+}
