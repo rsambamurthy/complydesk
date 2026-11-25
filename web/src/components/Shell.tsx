@@ -30,6 +30,7 @@ export function Shell() {
       { to: '/platform/rules', label: 'Built-in rules', icon: 'rules', show: true },
     ]) : null,
     group('admin', 'Administration', 'config', [
+      { to: '/admin/settings', label: 'Settings', icon: 'config', show: can('tenant.settings') },
       { to: '/admin/rules', label: 'Compliance rules', icon: 'rules', show: can('clients.view') },
       { to: '/admin/users', label: 'Users', icon: 'users', show: can('users.manage') },
       { to: '/admin/audit', label: 'Audit log', icon: 'audit', show: can('audit.view') },

@@ -29,3 +29,11 @@ export function monogram(name: string) {
   const caps = name.match(/[A-Z]/g);
   return (caps && caps.length > 1 ? caps[0] + caps[1] : name.slice(0, 2)).toUpperCase();
 }
+
+/** Filing workflow stages (server: services/stages.ts). */
+export const STAGE: Record<string, [string, string]> = {
+  TODO: ['To do', 'badge-invited'], DATA: ['Collecting data', 'badge-under_review'], DRAFTED: ['Drafted', 'badge-under_review'],
+  REVIEW: ['With reviewer', 'badge-under_review'], CLIENT: ['With client', 'badge-under_review'], READY: ['Ready to file', 'badge-under_review'],
+  FILED: ['Filed', 'badge-approved'], APPROVED: ['Approved by MCA', 'badge-approved'], RESUBMIT: ['Resubmission', 'badge-rejected'], NA: ['Not applicable', ''],
+};
+export const fmtSize = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);

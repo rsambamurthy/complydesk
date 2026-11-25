@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { db, schema, h, audit, HttpError, notFound } from '../lib/core.js';
 import { requirePerm } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
+import { settingsOf, settingsInput } from '../lib/settings.js';
+import { previewFor, runWorkspace } from '../services/reminders.js';
 import { workspaceRules, ruleHistoryFor, newRuleInput, ruleInput, createWorkspaceRule, saveWorkspaceRule, revertWorkspaceRule } from '../services/rules.js';
 
 const { users, roles, userRoles, rules, auditLog, clients } = schema;
@@ -16,7 +18,7 @@ const tid = (req: any) => req.staff.tenant.id as string;
 adminRouter.get('/users', requirePerm('users.manage'), h(async (req, res) => {
   // ?clientId= → only the users with access to that client (the client's Users tab).
   const clientId = typeof req.query.clientId === 'string' ? req.query.clientId : null;
-  const list = await db.select({ id: users.id, name: users.name, email: users.email, status: users.status, clientIds: users.clientIds, lastLoginAt: users.lastLoginAt })
+  const list = await db.select({ id: users.id, name: users.name, email: users.email, status: users.status, clientIds: users.clientIds, lastLoginAt: users.lastLoginAt, remindersOff: users.remindersOff })
     .from(users).where(and(eq(users.tenantId, tid(req)), clientId ? sql`${users.clientIds} @> ${JSON.stringify([clientId])}::jsonb` : undefined)).orderBy(users.name);
   const links = await db.select({ userId: userRoles.userId, roleId: userRoles.roleId }).from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(eq(roles.tenantId, tid(req)));
   res.json(list.map((u) => ({ ...u, roleIds: links.filter((l) => l.userId === u.id).map((l) => l.roleId) })));
@@ -29,6 +31,7 @@ const userInput = z.object({
   roleIds: z.array(z.string()).min(1, 'Pick at least one role'),
   clientIds: z.array(z.string()).default([]),
   status: z.enum(['ACTIVE', 'DISABLED']).default('ACTIVE'),
+  remindersOff: z.boolean().default(false),
 });
 
 async function checkRefs(tenantId: string, roleIds: string[], clientIds: string[]) {
@@ -47,7 +50,7 @@ adminRouter.post('/users', requirePerm('users.manage'), h(async (req, res) => {
   await checkRefs(tid(req), b.roleIds, b.clientIds);
   const [dupe] = await db.select({ id: users.id }).from(users).where(and(eq(users.tenantId, tid(req)), eq(users.email, b.email)));
   if (dupe) throw new HttpError(409, 'A user with this email already exists', { email: 'Already a user' });
-  const [u] = await db.insert(users).values({ tenantId: tid(req), name: b.name, email: b.email, status: b.status, clientIds: b.clientIds, passwordHash: await bcrypt.hash(b.password, 10), emailVerifiedAt: new Date() }).returning();
+  const [u] = await db.insert(users).values({ tenantId: tid(req), name: b.name, email: b.email, status: b.status, remindersOff: b.remindersOff, clientIds: b.clientIds, passwordHash: await bcrypt.hash(b.password, 10), emailVerifiedAt: new Date() }).returning();
   await db.insert(userRoles).values(b.roleIds.map((roleId) => ({ userId: u.id, roleId })));
   await audit(req, 'user.create', 'user', u.id, { email: b.email, roleIds: b.roleIds });
   res.status(201).json({ id: u.id });
@@ -56,7 +59,7 @@ adminRouter.post('/users', requirePerm('users.manage'), h(async (req, res) => {
 adminRouter.patch('/users/:id', requirePerm('users.manage'), h(async (req, res) => {
   const b = parse(userInput, req.body);
   await checkRefs(tid(req), b.roleIds, b.clientIds);
-  const [u] = await db.update(users).set({ name: b.name, email: b.email, status: b.status, clientIds: b.clientIds, ...(b.password ? { passwordHash: await bcrypt.hash(b.password, 10) } : {}) })
+  const [u] = await db.update(users).set({ name: b.name, email: b.email, status: b.status, remindersOff: b.remindersOff, clientIds: b.clientIds, ...(b.password ? { passwordHash: await bcrypt.hash(b.password, 10) } : {}) })
     .where(and(eq(users.id, req.params.id), eq(users.tenantId, tid(req)))).returning();
   if (!u) throw notFound('User not found');
   if (u.id === req.staff!.user.id && b.status === 'DISABLED') throw new HttpError(400, 'You can’t disable yourself');
@@ -81,6 +84,24 @@ adminRouter.post('/users/:id/client-access', requirePerm('users.manage'), h(asyn
   await db.update(users).set({ clientIds: next }).where(eq(users.id, u.id));
   await audit(req, b.grant ? 'user.client.grant' : 'user.client.revoke', 'user', u.id, b);
   res.json({ ok: true });
+}));
+
+// ---- Workspace settings: filing workflow and reminder emails ------------------------------------------------
+adminRouter.get('/settings', requirePerm('clients.view'), h(async (req, res) => res.json(settingsOf(req.staff!.tenant))));
+adminRouter.put('/settings', requirePerm('tenant.settings'), h(async (req, res) => {
+  const b = parse(settingsInput, req.body);
+  const [t] = await db.update(schema.tenants).set({ settings: { ...req.staff!.tenant.settings, ...b } }).where(eq(schema.tenants.id, tid(req))).returning();
+  await audit(req, 'settings.update', 'tenant', t.id, b);
+  res.json(settingsOf(t));
+}));
+/** Today's digest for the signed-in user: preview, or send it to them now. */
+adminRouter.get('/reminders/preview', requirePerm('clients.view'), h(async (req, res) => res.json(await previewFor(req.staff!.tenant, req.staff!.user.id))));
+adminRouter.post('/reminders/send-me', requirePerm('clients.view'), h(async (req, res) => {
+  const items = await previewFor(req.staff!.tenant, req.staff!.user.id);
+  if (!items.length) throw new HttpError(400, 'Nothing to remind you about today.');
+  try { await runWorkspace(req.staff!.tenant, undefined, { onlyUserId: req.staff!.user.id, force: true }); }
+  catch (e: any) { throw new HttpError(502, `The email couldn’t be sent: ${e.response ?? e.message}`); }
+  res.json({ ok: true, items: items.length, to: req.staff!.user.email });
 }));
 
 // ---- Roles -------------------------------------------------------------------------------------------------

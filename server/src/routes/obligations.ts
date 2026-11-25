@@ -5,6 +5,10 @@ import { parse } from '../lib/parse.js';
 import { obligationPatch } from '../lib/validators.js';
 import { listObligations, summary, updateObligation, getObligation, removeManual, perClient, type Bucket } from '../services/obligations.js';
 import { and, eq, inArray } from 'drizzle-orm';
+import { HttpError } from '../lib/core.js';
+import { move, moveInput, movesFor, history } from '../services/workflow.js';
+import { isMeeting } from '../services/stages.js';
+import { settingsOf } from '../lib/settings.js';
 
 export const obligationsRouter = Router();
 const tid = (req: any) => req.staff.tenant.id as string;
@@ -34,9 +38,33 @@ obligationsRouter.get('/dashboard', requirePerm('clients.view'), h(async (req, r
   res.json({ all, mine, attention });
 }));
 
+/** One filing with what this person can do next, its history and who prepared / reviewed / approved it. */
+obligationsRouter.get('/:id', requirePerm('clients.view'), h(async (req, res) => {
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  const ids = [ob.preparedById, ob.reviewedById, ob.clientApprovedById].filter(Boolean) as string[];
+  const names = ids.length ? await db.select({ id: schema.users.id, name: schema.users.name }).from(schema.users).where(inArray(schema.users.id, ids)) : [];
+  const nameOf = (id: string | null) => names.find((n) => n.id === id)?.name ?? null;
+  res.json({ obligation: ob, moves: await movesFor(ob, req.staff!), history: await history(ob.id), settings: settingsOf(req.staff!.tenant),
+    preparedBy: nameOf(ob.preparedById), reviewedBy: nameOf(ob.reviewedById), clientApprovedBy: nameOf(ob.clientApprovedById) });
+}));
+
+obligationsRouter.post('/:id/move', h(async (req, res) => {
+  const p = req.staff!.permissions;
+  if (!p.has('compliance.work') && !p.has('compliance.client_approve') && !p.has('compliance.approve')) throw new HttpError(403, 'You can’t do this');
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  const x = await move(ob, req.staff!, parse(moveInput, req.body));
+  await audit(req, `filing.${req.body.action}`, 'obligation', x.id, { stage: x.stage, note: req.body.note });
+  res.json(x);
+}));
+
 obligationsRouter.patch('/:id', requirePerm('compliance.work'), h(async (req, res) => {
   const cur = await getObligation(tid(req), req.params.id);
   assertClientVisible(req, cur.clientId);
+  // A filing is marked filed through the workflow (review, SRN); meetings are marked held from the meeting.
+  if (req.body.status && !isMeeting(cur.form) && req.body.status !== cur.status && settingsOf(req.staff!.tenant).requireReview && req.body.status === 'FILED')
+    throw new HttpError(400, 'Your firm reviews filings before they’re filed — use the steps in the filing.');
   const x = await updateObligation(tid(req), req.params.id, parse(obligationPatch, req.body));
   await audit(req, 'obligation.update', 'obligation', x.id, req.body);
   res.json(x);

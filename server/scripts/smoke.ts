@@ -24,6 +24,8 @@ const ok = (cond: unknown, msg: string) => { if (!cond) throw new Error('FAILED:
 
 await call('/auth/login', { body: { workspace: 'demo', email: 'admin@demo.in', password: 'Demo@12345' } });
 ok((await call('/auth/me')).user.email === 'admin@demo.in', 'signed in');
+// These checks mark filings done directly; the review workflow has its own suite (smoke-workflow.ts).
+await call('/admin/settings', { method: 'PUT', body: { requireReview: false } });
 
 // Validation: a bad CIN and a CIN/type mismatch are refused with field errors.
 const bad = await call('/clients', { body: { cin: 'XYZ', name: 'Bad', companyType: 'PRIVATE' }, expect: 400 });

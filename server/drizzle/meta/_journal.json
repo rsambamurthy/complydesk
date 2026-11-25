@@ -29,6 +29,13 @@
       "when": 1795595974345,
       "tag": "0003_safe_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795604830937,
+      "tag": "0004_groovy_jack_murdock",
+      "breakpoints": true
     }
   ]
 }

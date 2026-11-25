@@ -22,6 +22,7 @@ export function Dashboard() {
     <div className="page">
       <div className="page-head"><div><h1>Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {me!.user.name.split(' ')[0]}</h1><p className="muted">Where every client stands today.</p></div></div>
       {all.open + all.done === 0 && <GettingStarted />}
+      <Waiting all={all} />
       <div className="tiles" style={{ gridTemplateColumns: 'repeat(5, minmax(0,1fr))' }}>
         <Tile to="/calendar?bucket=overdue" n={all.overdue} label="Overdue" bad={all.overdue > 0} sub={mine.overdue ? `${mine.overdue} with you` : undefined} />
         <Tile to="/calendar?bucket=week" n={all.week} label="Due in 7 days" warn={all.week > 0} sub={mine.week ? `${mine.week} with you` : undefined} />
@@ -80,4 +81,17 @@ function GettingStarted() {
       </ol>
     </section>
   );
+}
+
+/** Filings waiting on someone: a reviewer (firm) or the client's approver. */
+function Waiting({ all }: { all: Summary }) {
+  const { can, me } = useSession();
+  const clientUser = !!me?.user.clientIds.length;
+  const items = [
+    ...(!clientUser && can('compliance.approve') && all.review ? [{ to: '/calendar?bucket=review', text: `${all.review} filing${all.review === 1 ? '' : 's'} waiting for review` }] : []),
+    ...(!clientUser && all.client ? [{ to: '/calendar?bucket=client', text: `${all.client} with clients for approval` }] : []),
+    ...(clientUser && all.client ? [{ to: '/calendar?bucket=client', text: `${all.client} filing${all.client === 1 ? '' : 's'} waiting for your approval` }] : []),
+  ];
+  if (!items.length) return null;
+  return <Alert kind="info">{items.map((i, n) => <span key={i.to}>{n > 0 && ' · '}<Link to={i.to}><strong>{i.text}</strong></Link></span>)}</Alert>;
 }

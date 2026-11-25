@@ -8,6 +8,7 @@ import { Alert, Modal, Spinner, StatusBadge } from '../components/ui';
 import { RecordModal } from '../components/RecordForm';
 import { MEETING_TYPE, MODE, MeetingStatus } from '../components/Meetings';
 import { useSession } from '../lib/session';
+import { Attachments } from '../components/Attachments';
 import type { ObStatus } from '../lib/types';
 
 interface Item { id: string; seq: number; templateKey: string | null; title: string; resolutionType: string; text: string | null; personId: string | null; filings: string[]; completes: string[]; outcome: string; created: { id: string; form: string; dueDate: string; status: ObStatus }[] }
@@ -114,6 +115,9 @@ export function MeetingDetail() {
       </div>
 
       {x.heldOn && <Minutes d={data} edit={edit} onSaved={reload} />}
+
+      <section className="card pad"><h3 style={{ marginTop: 0 }}>Documents</h3>
+        <Attachments entity="meeting" entityId={x.id} canAdd={can('compliance.work')} canRemove={can('compliance.work') && !signed} /></section>
 
       {dlg === 'edit' && <RecordModal title="Meeting details" initial={x}
         fields={[

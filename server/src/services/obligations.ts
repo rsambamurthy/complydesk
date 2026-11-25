@@ -10,12 +10,14 @@ import { addDays, todayIso } from '../compliance/dates.js';
 import { eventObligation, lateFeeEstimate } from '../compliance/engine.js';
 import { rulesFor } from '../compliance/sync.js';
 import { getClient, setYear } from './clients.js';
+import { statusToStage } from './stages.js';
+export { isMeeting } from './stages.js';
 import { schema as S } from '../lib/core.js';
 
 const { obligations: o, clients, people, users } = schema;
 const DONE = ['FILED', 'NOT_APPLICABLE'];
 
-export type Bucket = 'overdue' | 'week' | 'month' | 'open' | 'done' | 'all';
+export type Bucket = 'overdue' | 'week' | 'month' | 'open' | 'done' | 'all' | 'review' | 'client';
 
 /** The filter each bucket means, as of `today`. */
 export function bucketWhere(b: Bucket, today = todayIso()): SQL | undefined {
@@ -25,6 +27,8 @@ export function bucketWhere(b: Bucket, today = todayIso()): SQL | undefined {
     case 'month': return and(notInArray(o.status, DONE), gte(o.dueDate, today), lte(o.dueDate, addDays(today, 30)));
     case 'open': return notInArray(o.status, DONE);
     case 'done': return inArray(o.status, DONE);
+    case 'review': return eq(o.stage, 'REVIEW');
+    case 'client': return eq(o.stage, 'CLIENT');
     default: return undefined;
   }
 }
@@ -61,8 +65,8 @@ export async function summary(tenantId: string, f: Omit<ListFilter, 'bucket'> = 
     f.clientIds ? inArray(o.clientId, f.clientIds.length ? f.clientIds : ['-']) : undefined,
     f.assigneeId ? eq(o.assigneeId, f.assigneeId) : undefined);
   const count = async (b: Bucket) => (await db.select({ n: sql<number>`count(*)::int` }).from(o).innerJoin(clients, eq(clients.id, o.clientId)).where(and(base, bucketWhere(b))))[0].n;
-  const [overdue, week, month, open, done] = await Promise.all((['overdue', 'week', 'month', 'open', 'done'] as Bucket[]).map(count));
-  return { overdue, week, month, open, done };
+  const [overdue, week, month, open, done, review, client] = await Promise.all((['overdue', 'week', 'month', 'open', 'done', 'review', 'client'] as Bucket[]).map(count));
+  return { overdue, week, month, open, done, review, client };
 }
 
 /** Per client: overdue and due within 30 days (dashboard table, client list). */
@@ -91,7 +95,7 @@ export async function updateObligation(tenantId: string, id: string, patch: z.ou
   }
   // Only hand-added (event) obligations may have their due date moved; generated ones follow the rules.
   if (patch.dueDate && cur.source !== 'MANUAL') delete patch.dueDate;
-  const next = { ...patch, ...(patch.status && patch.status !== 'FILED' ? { filedOn: null } : {}) };
+  const next = { ...patch, ...(patch.status && patch.status !== 'FILED' ? { filedOn: null } : {}), ...(patch.status ? { stage: statusToStage(patch.status, cur.stage) } : {}) };
   const [x] = await db.update(o).set({ ...next, updatedAt: new Date() }).where(eq(o.id, id)).returning();
   await feedAnchors(tenantId, x);
   return x;

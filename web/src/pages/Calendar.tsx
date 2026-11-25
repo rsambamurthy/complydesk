@@ -8,6 +8,7 @@ import { fyLabel } from '../lib/format';
 
 const BUCKETS = [
   { key: 'overdue', label: 'Overdue' }, { key: 'week', label: 'Next 7 days' }, { key: 'month', label: 'Next 30 days' },
+  { key: 'review', label: 'For review' }, { key: 'client', label: 'With client' },
   { key: 'open', label: 'All open' }, { key: 'done', label: 'Done' }, { key: 'all', label: 'Everything' },
 ];
 

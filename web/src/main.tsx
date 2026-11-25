@@ -22,6 +22,7 @@ import { ImportClients } from './pages/ImportClients';
 import { Rules } from './pages/admin/Rules';
 import { Users } from './pages/admin/Users';
 import { Audit } from './pages/admin/Audit';
+import { Settings } from './pages/admin/Settings';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -43,6 +44,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/admin/rules" element={<Rules />} />
             <Route path="/admin/users" element={<Users />} />
             <Route path="/admin/audit" element={<Audit />} />
+            <Route path="/admin/settings" element={<Settings />} />
             <Route path="/platform" element={<Platform />} />
             <Route path="/platform/rules" element={<Rules platform />} />
           </Route>

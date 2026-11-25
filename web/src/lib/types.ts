@@ -1,4 +1,4 @@
-export type Permission = 'clients.view' | 'clients.manage' | 'compliance.work' | 'compliance.approve' | 'rules.manage' | 'users.manage' | 'tenant.settings' | 'audit.view';
+export type Permission = 'clients.view' | 'clients.manage' | 'compliance.work' | 'compliance.approve' | 'compliance.client_approve' | 'rules.manage' | 'users.manage' | 'tenant.settings' | 'audit.view';
 
 export interface Me {
   tenant: { id: string; name: string; slug: string };
@@ -37,8 +37,9 @@ export interface Obligation {
   periodLabel: string; personId: string | null; personName: string | null; eventDate: string | null; dueDate: string; provisional: boolean;
   status: ObStatus; source: 'AUTO' | 'MANUAL'; filedOn: string | null; srn: string | null; assigneeId: string | null; assigneeName: string | null;
   notes: string | null; lateFee: number | null; lateFeeNote: string | null; law: string | null; ruleNotes: string | null;
+  stage: string; preparedById: string | null;
 }
-export interface Summary { overdue: number; week: number; month: number; open: number; done: number }
+export interface Summary { overdue: number; week: number; month: number; open: number; done: number; review: number; client: number }
 
 export interface Meta {
   flags: Record<string, string>; designations: string[]; fys: number[];
