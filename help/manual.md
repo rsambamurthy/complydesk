@@ -132,6 +132,8 @@ The CIN must match the company type (PTC for private, OPC for one person compani
 
 - **Details** — registered office, RoC, email, capital, and the applicability ticks (owes MSME suppliers \> 45 days → MSME-1; outstanding loans / money received → DPT-3).
 
+- **Registers** — the statutory registers (section 4, Statutory registers).
+
 - **Documents** — company records; documents read by AI are kept here.
 
 - **Client users** — the company's own people who can log in.
@@ -147,6 +149,16 @@ The CIN must match the company type (PTC for private, OPC for one person compani
 **Edit details** changes the company record. **Read a document** updates the record from a document (section 8).
 
 Tip: record the AGM date as soon as it is held (or mark the AGM held in Meetings). AOC-4 and MGT-7 due dates are estimates until then.
+
+### Statutory registers
+
+The client's **Registers** tab keeps the registers the Act requires: members (MGT-1), allotments and transfers of shares, directors and KMP with their shareholding, charges (CHG-7), contracts in which directors are interested (MBP-4) and loans, guarantees, security and investments (MBP-2).
+
+- Members and directors & KMP are built from the **Shareholders** and **Directors & KMP** tabs — fill in the particulars there (address, father's / spouse's name, date of birth…).
+- The others take entries: open the register and press **Add entry**. Recording a charge adds CHG-1 to the calendar, its satisfaction adds CHG-4, an allotment adds PAS-3 and a special resolution for a loan or investment adds MGT-14.
+- **To check before printing** lists missing particulars and holdings that the allotments and transfers don't add up to.
+- **Print** opens the register on A4 landscape for printing or saving as PDF; **Excel** downloads it.
+- A member or director named in a register can't be deleted — enter the date they ceased instead.
 
 ## 5. Dashboard and compliance calendar
 

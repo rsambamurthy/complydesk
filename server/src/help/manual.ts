@@ -134,7 +134,7 @@ const SUGGEST: [RegExp, string[]][] = [
   [/^\/filings/, ['How do I fill the MCA form with the extension?', 'Where does the form data come from?']],
   [/^\/meetings/, ['How do I mark the AGM as held?', 'How do meeting outcomes add filings?']],
   [/^\/extension/, ['How do I connect the extension?', 'The form filler didn\'t match a field — what now?']],
-  [/^\/clients/, ['How do I add a client from MCA master data?', 'Why is a filing missing from the calendar?', 'How do I read a document with AI?']],
+  [/^\/clients/, ['How do I add a client from MCA master data?', 'How do I record a charge in the register?', 'Why is a filing missing from the calendar?']],
   [/^\/admin\/settings/, ['What does "Reviewer checks every filing" do?', 'How do reminder emails work?']],
   [/^\/admin\/users/, ['What can each role do?', 'How do I give a client access to their company?']],
 ];

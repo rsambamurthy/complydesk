@@ -16,6 +16,7 @@ export const PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
 
 export const COMPANY_TYPES = ['PRIVATE', 'OPC'] as const;
 export const DESIGNATIONS = ['DIRECTOR', 'MANAGING_DIRECTOR', 'WHOLE_TIME_DIRECTOR', 'NOMINEE_DIRECTOR', 'INDEPENDENT_DIRECTOR', 'CEO', 'CFO', 'CS'] as const;
+export const DESIGNATION_LABEL: Record<string, string> = { DIRECTOR: 'Director', MANAGING_DIRECTOR: 'Managing Director', WHOLE_TIME_DIRECTOR: 'Whole-time Director', NOMINEE_DIRECTOR: 'Nominee Director', INDEPENDENT_DIRECTOR: 'Independent Director', CEO: 'CEO', CFO: 'CFO', CS: 'Company Secretary' };
 export const FLAGS = { msmeDues: 'Owes MSME suppliers for more than 45 days (MSME-1)', depositsOrLoans: 'Has outstanding loans / money received (DPT-3)' } as const;
 
 export const clientInput = z.object({
@@ -48,6 +49,7 @@ export const personInput = z.object({
   dscExpiry: optDate,
   dinAllottedOn: optDate,
   kycLastFiledFy: z.coerce.number().int().min(2000).max(2100).nullish().or(z.literal('').transform(() => null)),
+  fatherName: optText, address: optText, dob: optDate, nationality: optText, occupation: optText, membershipNo: optText,
 }).superRefine((p, ctx) => {
   if (p.designation.includes('DIRECTOR') && !p.din) ctx.addIssue({ code: 'custom', path: ['din'], message: 'A director needs a DIN' });
 });
@@ -57,8 +59,12 @@ export const shareholderInput = z.object({
   pan: z.string().trim().toUpperCase().nullish().transform((v) => v || null).refine((v) => !v || PAN_RE.test(v), 'PAN looks like ABCDE1234F'),
   folio: optText,
   shareClass: z.enum(['EQUITY', 'PREFERENCE']).default('EQUITY'),
-  shares: z.coerce.number().int().positive('Number of shares'),
+  shares: z.coerce.number().int().min(0, 'Number of shares'),
   faceValue: money.transform((v) => v ?? '10'),
+  fatherName: optText, address: optText, email: z.string().trim().email('Enter a valid email').nullish().or(z.literal('').transform(() => null)),
+  occupation: optText, nationality: optText, becameMemberOn: optDate, ceasedOn: optDate,
+}).superRefine((s, ctx) => {
+  if (!s.shares && !s.ceasedOn) ctx.addIssue({ code: 'custom', path: ['shares'], message: 'Number of shares (0 only for a former member — enter the date they ceased)' });
 });
 
 export const auditorInput = z.object({

@@ -2,7 +2,7 @@
  * Client master: the only place clients, people, shareholders and auditors are written.
  * Used by the API routes and the Excel import. Every write re-syncs the client's compliance calendar.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import { db, schema, HttpError, notFound } from '../lib/core.js';
 import type { clientInput, personInput, shareholderInput, auditorInput, yearInput } from '../lib/validators.js';
@@ -38,6 +38,13 @@ export async function updateClient(tenantId: string, id: string, input: Partial<
   return c;
 }
 
+/** A director or member named in a register entry can't be deleted (the register would lose the name) — mark them ceased instead. */
+async function assertNotInRegisters(tenantId: string, id: string, label: string) {
+  const [hit] = await db.select({ id: schema.registerEntries.id }).from(schema.registerEntries)
+    .where(and(eq(schema.registerEntries.tenantId, tenantId), sql`${schema.registerEntries.data}::text like ${`%"${id}"%`}`)).limit(1);
+  if (hit) throw new HttpError(409, `${label} appears in a statutory register — enter the date they ceased instead of deleting.`);
+}
+
 /** One helper for the three child lists (people, shareholders, auditors): same tenant/client checks, same re-sync. */
 function childList<T extends typeof people | typeof shareholders | typeof auditors>(table: T, label: string) {
   return {
@@ -54,6 +61,7 @@ function childList<T extends typeof people | typeof shareholders | typeof audito
       return row;
     },
     async remove(tenantId: string, id: string) {
+      if (table !== auditors) await assertNotInRegisters(tenantId, id, label);
       const [row] = await (db.delete(table as any).where(and(eq(table.id, id), eq(table.tenantId, tenantId))).returning() as Promise<any[]>);
       if (!row) throw notFound(`${label} not found`);
       await syncClient(tenantId, (row as any).clientId);

@@ -159,6 +159,13 @@ export const people = pgTable('people', {
   /** DIN allotment date and the FY (start year, 2025 = FY 2025-26) of the last DIR-3 KYC filed: they start the 3-year KYC cycle. */
   dinAllottedOn: date('din_allotted_on'),
   kycLastFiledFy: integer('kyc_last_filed_fy'),
+  /** For the register of directors and KMP (Sec 170, Rule 17). */
+  fatherName: text('father_name'),
+  address: text('address'),
+  dob: date('dob'),
+  nationality: text('nationality'),
+  occupation: text('occupation'),
+  membershipNo: text('membership_no'),
   createdAt: createdAt(),
 }, (t) => [index('people_client_ix').on(t.clientId)]);
 
@@ -172,6 +179,14 @@ export const shareholders = pgTable('shareholders', {
   shareClass: text('share_class').notNull().default('EQUITY'),
   shares: integer('shares').notNull(),
   faceValue: numeric('face_value').notNull().default('10'),
+  /** For the register of members (Sec 88, MGT-1). */
+  fatherName: text('father_name'),
+  address: text('address'),
+  email: text('email'),
+  occupation: text('occupation'),
+  nationality: text('nationality'),
+  becameMemberOn: date('became_member_on'),
+  ceasedOn: date('ceased_on'),
   createdAt: createdAt(),
 }, (t) => [index('shareholders_client_ix').on(t.clientId)]);
 
@@ -477,3 +492,17 @@ export const helpQuestions = pgTable('help_questions', {
   outputTokens: integer('output_tokens'),
   createdAt: createdAt(),
 }, (t) => [index('help_questions_tenant_ix').on(t.tenantId, t.createdAt)]);
+
+/** Entries of the statutory registers kept as entries (charges, contracts, loans & investments, share allotments/transfers). Fields per register in registers/specs.ts. */
+export const registerEntries = pgTable('register_entries', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  register: text('register').notNull(),
+  entryDate: date('entry_date').notNull(),
+  data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+  closedOn: date('closed_on'),
+  createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('register_entries_client_ix').on(t.clientId, t.register, t.entryDate)]);

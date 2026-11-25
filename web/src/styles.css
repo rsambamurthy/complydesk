@@ -1014,3 +1014,14 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .help-drawer-head { display: flex; justify-content: space-between; align-items: center; font-size: 16px; } .help-drawer-head .af-hbtn { color: var(--ink); }
 .help-drawer-links { display: grid; gap: 4px; } .help-drawer .ha { grid-template-rows: 1fr auto auto; min-height: 0; } .help-drawer .ha-log { max-height: none; overflow: auto; }
 @media print { .help-drawer { display: none; } }
+
+/* Statutory registers */
+.reg-pick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.reg-chip { display: grid; gap: 2px; text-align: start; border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 8px 12px; cursor: pointer; font: inherit; min-width: 150px; }
+.reg-chip:hover { border-color: var(--brand-100); } .reg-chip.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); background: var(--brand-50); }
+.reg-table td { vertical-align: top; } .reg-table tr.reg-closed td { color: var(--muted); }
+.check-inline { display: inline-flex; gap: 6px; align-items: center; } .check-inline input { width: auto; }
+.reg-print { padding: 16px 20px; font-family: Georgia, 'Times New Roman', serif; color: #111; }
+.reg-print table { width: 100%; border-collapse: collapse; font-size: 11px; } .reg-print th, .reg-print td { border: 1px solid #444; padding: 4px 5px; vertical-align: top; text-align: start; }
+.reg-print th { background: #f0f0f0; }
+.registers { padding: 14px 16px; }

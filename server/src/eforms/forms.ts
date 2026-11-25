@@ -10,7 +10,7 @@ const fmt = (d: string | null | undefined) => (d ? new Date(`${d}T00:00:00Z`).to
 const num = (n: number | string | null | undefined) => (n === null || n === undefined || n === '' ? null : Number(n).toLocaleString('en-IN'));
 const fyStart = (fy: number) => `${fy}-04-01`;
 const fyEnd = (fy: number) => `${fy + 1}-03-31`;
-const DESIG: Record<string, string> = { DIRECTOR: 'Director', MANAGING_DIRECTOR: 'Managing Director', WHOLE_TIME_DIRECTOR: 'Whole-time Director', NOMINEE_DIRECTOR: 'Nominee Director', INDEPENDENT_DIRECTOR: 'Independent Director', CEO: 'CEO', CFO: 'CFO', CS: 'Company Secretary' };
+import { DESIGNATION_LABEL as DESIG } from '../lib/validators.js';
 const isDirector = (p: Person) => p.designation.includes('DIRECTOR');
 const inOffice = (p: Person, on: string) => (!p.appointedOn || p.appointedOn <= on) && (!p.ceasedOn || p.ceasedOn > on);
 const totalShares = (c: FormCtx) => c.shareholders.reduce((s, x) => s + x.shares, 0);

@@ -58,6 +58,27 @@ for (const x of await db.select().from(o).where(eq(o.tenantId, t))) {
   else if (x.fy === 2025 && x.form === 'MGT-7') await updateObligation(t, x.id, { status: 'IN_PROGRESS', assigneeId: exec.id });
   else if (x.fy === 2025 && x.form === 'AOC-4' && x.clientId === kaveri.id) await updateObligation(t, x.id, { status: 'FILED', filedOn: '2026-10-20', srn: 'F80412233' });
 }
+// Statutory registers for Kaveri: member and director particulars, the original allotments, a bank charge.
+{
+  const ms = await db.select().from(schema.shareholders).where(eq(schema.shareholders.clientId, kaveri.id));
+  const ps = await db.select().from(schema.people).where(eq(schema.people.clientId, kaveri.id));
+  const m = (n: string) => ms.find((x) => x.name === n)!;
+  const p = (n: string) => ps.find((x) => x.name === n)!;
+  const addr = { 'Anita Rao': '12, Second Main Road, Gandhi Nagar, Adyar, Chennai 600020', 'Suresh Iyer': '4, Lake View Street, T. Nagar, Chennai 600017' } as Record<string, string>;
+  const fam = { 'Anita Rao': 'S. Raghavan', 'Suresh Iyer': 'K. Iyer' } as Record<string, string>;
+  for (const [i, n] of ['Anita Rao', 'Suresh Iyer'].entries()) {
+    await db.update(schema.shareholders).set({ folio: String(i + 1), address: addr[n], fatherName: fam[n], occupation: 'Business', nationality: 'Indian', becameMemberOn: '2015-06-10' }).where(eq(schema.shareholders.id, m(n).id));
+    await db.update(schema.people).set({ address: addr[n], fatherName: fam[n], occupation: 'Business', nationality: 'Indian', dob: i ? '1978-11-03' : '1974-02-21' }).where(eq(schema.people.id, p(n).id));
+  }
+  const entry = (register: string, entryDate: string, data: Record<string, unknown>, closedOn: string | null = null) => ({ tenantId: t, clientId: kaveri.id, register, entryDate, data, closedOn });
+  await db.insert(schema.registerEntries).values([
+    entry('SHARE_LEDGER', '2015-06-10', { kind: 'ALLOTMENT', date: '2015-06-10', toMember: m('Anita Rao').id, shareClass: 'EQUITY', shares: 30000, distinctiveFrom: 1, distinctiveTo: 30000, certificateNo: '1', price: 10, consideration: 'CASH' }),
+    entry('SHARE_LEDGER', '2015-06-10', { kind: 'ALLOTMENT', date: '2015-06-10', toMember: m('Suresh Iyer').id, shareClass: 'EQUITY', shares: 20000, distinctiveFrom: 30001, distinctiveTo: 50000, certificateNo: '2', price: 10, consideration: 'CASH' }),
+    entry('CHARGES', '2024-04-15', { chargeId: '100845123', createdOn: '2024-04-15', holder: 'HDFC Bank Limited', holderAddress: 'HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai 400013', amount: 15000000, nature: 'HYPOTHECATION', property: 'Current assets — stock and book debts, present and future', instrument: 'Deed of hypothecation dated 15 April 2024', terms: 'Working capital limit; interest at repo + 3.25%; repayable on demand' }),
+    entry('LOANS', '2025-09-01', { kind: 'INVESTMENT', date: '2025-09-01', party: 'Kaveri Cloud Services Private Limited', amount: 1000000, purpose: 'Investment in wholly owned subsidiary', securities: '1,00,000 equity shares of ₹10 each at par', boardOn: '2025-08-20' }),
+  ]);
+}
+
 console.log('Seeded demo workspace: workspace "demo", admin@demo.in / Demo@12345');
 }
 

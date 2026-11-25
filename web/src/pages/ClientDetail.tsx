@@ -1,3 +1,4 @@
+import { Registers } from '../components/Registers';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -17,7 +18,7 @@ import { DscReader, ReadDocument, useReading } from '../components/DocumentReade
 
 interface Detail { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[]; summary: Summary; rules: { code: string; form: string; title: string; applies: boolean }[] }
 
-const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details', 'Documents', 'Client users'] as const;
+const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Registers', 'Auditor', 'Details', 'Documents', 'Client users'] as const;
 
 export function ClientDetail() {
   const { id } = useParams();
@@ -78,6 +79,7 @@ export function ClientDetail() {
               ]} />
           )}
           {tab === 'Meetings' && <ClientMeetings clientId={c.id} />}
+          {tab === 'Registers' && <Registers key={docsKey} clientId={c.id} onRecords={setTab} />}
           {tab === 'Documents' && <div className="pad stack" style={{ gap: 8 }}>
             <p className="muted small" style={{ margin: 0 }}>Company records: master data, incorporation papers, annual returns, financial statements, auditor letters. Documents read into this client are kept here too.</p>
             <Attachments key={docsKey} entity="client" entityId={c.id} canAdd={can('compliance.work')} canRemove={can('clients.manage')} />
@@ -150,7 +152,7 @@ function ComplianceTab({ d, meta, reload, onPapers }: { d: Detail; meta: Meta; r
 function Shareholders({ d, reload }: { d: Detail; reload: () => void }) {
   const total = d.shareholders.reduce((s, x) => s + x.shares, 0);
   return (
-    <ChildList title="Register of members" path="shareholders" clientId={d.client.id} rows={d.shareholders} fields={shareholderFields} reload={reload} initial={{ shareClass: 'EQUITY', faceValue: '10' }}
+    <ChildList title="Shareholders" path="shareholders" clientId={d.client.id} rows={d.shareholders} fields={shareholderFields} reload={reload} initial={{ shareClass: 'EQUITY', faceValue: '10' }}
       cols={[
         { label: 'Name', cell: (s) => <><strong>{s.name}</strong><span className="muted small block mono">{s.pan}</span></> },
         { label: 'Folio', cell: (s) => s.folio ?? '—' },

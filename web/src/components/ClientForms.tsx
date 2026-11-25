@@ -38,6 +38,12 @@ export const personFields = (meta: Meta): FieldDef[] => [
   { key: 'ceasedOn', label: 'Ceased on', type: 'date', help: 'Leave empty while in office.' },
   { key: 'dscExpiry', label: 'DSC expiry', type: 'date' },
   { key: 'dinAllottedOn', label: 'DIN allotted on', type: 'date', show: (v) => String(v.designation ?? '').includes('DIRECTOR') },
+  { key: 'fatherName', label: 'Father’s / mother’s / spouse’s name', help: 'For the register of directors and KMP.' },
+  { key: 'dob', label: 'Date of birth', type: 'date' },
+  { key: 'address', label: 'Residential address', type: 'textarea', wide: true },
+  { key: 'nationality', label: 'Nationality', placeholder: 'Indian' },
+  { key: 'occupation', label: 'Occupation' },
+  { key: 'membershipNo', label: 'ICSI membership no.', show: (v) => v.designation === 'CS' },
   { key: 'kycLastFiledFy', label: 'Last DIR-3 KYC filed in FY', type: 'number', placeholder: 'e.g. 2025 for FY 2025-26', show: (v) => String(v.designation ?? '').includes('DIRECTOR'), help: 'KYC is due every 3 FYs (by 30 June), counted from this year or the DIN allotment.' },
 ];
 
@@ -48,6 +54,13 @@ export const shareholderFields: FieldDef[] = [
   { key: 'shareClass', label: 'Class', type: 'select', required: true, options: [{ value: 'EQUITY', label: 'Equity' }, { value: 'PREFERENCE', label: 'Preference' }] },
   { key: 'shares', label: 'Number of shares', type: 'number', required: true },
   { key: 'faceValue', label: 'Face value (₹)', type: 'number' },
+  { key: 'becameMemberOn', label: 'Became a member on', type: 'date' },
+  { key: 'ceasedOn', label: 'Ceased to be a member on', type: 'date', help: 'For a former member, with 0 shares — they stay in the register of members.' },
+  { key: 'fatherName', label: 'Father’s / mother’s / spouse’s name' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'address', label: 'Address', type: 'textarea', wide: true },
+  { key: 'occupation', label: 'Occupation' },
+  { key: 'nationality', label: 'Nationality', placeholder: 'Indian' },
 ];
 
 export const auditorFields: FieldDef[] = [
