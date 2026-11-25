@@ -16,7 +16,12 @@ export async function sendMail(to: string, subject: string, text: string) {
   const c = cfg();
   if (!mailConfigured()) { console.log(`[mail not configured] to=${to} subject="${subject}"\n${text}`); return; }
   transport ??= nodemailer.createTransport({ host: c.host, port: c.port, secure: c.port === 465, auth: { user: c.user, pass: c.pass } });
-  await transport.sendMail({ from: c.from, to, subject, text });
+  // Zoho (like most providers) only sends "from" the mailbox that signed in ("550 Sender is not allowed to relay").
+  // So the address is always SMTP_USER; MAIL_FROM supplies the display name, and a different MAIL_FROM address becomes Reply-To.
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(c.from ?? '');
+  const name = (m?.[1] || 'ComplyDesk').trim();
+  const fromAddr = m?.[2] ?? (c.from?.includes('@') ? c.from.trim() : c.user!);
+  await transport.sendMail({ from: { name, address: c.user! }, to, subject, text, ...(fromAddr.toLowerCase() !== c.user!.toLowerCase() ? { replyTo: fromAddr } : {}) });
 }
 
 /** Absolute link into the app (APP_URL, else Railway's public domain, else local dev). */
