@@ -29,3 +29,4 @@ button:disabled { opacity: .5; cursor: default; }
 .bar { height: 6px; background: #e6e9f0; border-radius: 3px; } .bar > div { height: 6px; border-radius: 3px; background: #2f6fde; }
 .note { background: #fff8e6; border: 1px solid #f3dfae; color: #6b4600; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 .err { background: #fdecea; border: 1px solid #f4c8c4; color: #8c1d17; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

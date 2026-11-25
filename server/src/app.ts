@@ -41,13 +41,13 @@ export function createApp() {
   app.use('/api/import', requireStaff, requireWritable, importRouter);
   app.use('/api/meetings', requireStaff, requireWritable, meetingsRouter);
   app.use('/api/files', requireStaff, requireWritable, filesRouter);
-  // The browser extension calls from its own origin with a Bearer token (no cookies): allow it, read-only.
+  // The browser extension calls from its own origin with a Bearer token (no cookies): reads, plus filing status (POST).
   app.use('/api/ext', (req, res, next) => {
     const origin = req.get('origin') ?? '';
     if (origin.startsWith('chrome-extension://') || (!env.isProd && /^http:\/\/localhost(:\d+)?$/.test(origin))) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Headers', 'Authorization');
-      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       res.setHeader('Vary', 'Origin');
     }

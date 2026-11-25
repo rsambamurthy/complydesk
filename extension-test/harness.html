@@ -2,4 +2,4 @@
 <!-- Side by side: the mock MCA form and the extension panel (with chrome-stub.js). Serve the repo root over http. -->
 <html><head><meta charset="utf-8"><title>ComplyDesk extension — test harness</title>
 <style>body{margin:0;display:grid;grid-template-columns:1fr 400px;height:100vh} iframe{border:0;width:100%;height:100%} #panel{border-left:1px solid #ccc}</style></head>
-<body><iframe name="mca" src="mock-mca.html"></iframe><iframe id="panel" name="panel" src="panel-test.html"></iframe></body></html>
+<body><iframe name="mca" id="mca" src="mock-mca.html"></iframe><script>const m = new URLSearchParams(location.search).get("mca"); if (m) document.getElementById("mca").src = m;</script><iframe id="panel" name="panel" src="panel-test.html"></iframe></body></html>

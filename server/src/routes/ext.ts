@@ -1,14 +1,19 @@
 /**
- * The browser extension's API (Bearer token, read-only): who am I, filings with MCA form data, a filing's form data.
+ * The browser extension's API (Bearer token): who am I, filings with MCA form data, a filing's form data — all read-only —
+ * and one write: filing status read from the MCA portal (approved / resubmission), confirmed by the user in the panel,
+ * applied through the filing workflow like any other step.
  * Token management for the signed-in user lives at /api/auth/extension-tokens; the extension download at /api/extension.zip.
  */
 import { Router, type Request } from 'express';
-import { and, asc, eq, ilike, inArray, isNull, notInArray, or } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, notInArray, or } from 'drizzle-orm';
+import { z } from 'zod';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import JSZip from 'jszip';
-import { db, schema, h, randomToken, sha256, HttpError } from '../lib/core.js';
+import { db, schema, h, audit, randomToken, sha256, HttpError } from '../lib/core.js';
+import { parse } from '../lib/parse.js';
+import { move } from '../services/workflow.js';
 import { clientScope, assertClientVisible, requireStaff } from '../auth/session.js';
 import { FORM_SPECS } from '../eforms/forms.js';
 import { formPack } from '../services/eforms.js';
@@ -35,6 +40,40 @@ extRouter.get('/filings/:id/form', h(async (req, res) => {
   const ob = await getObligation(req.staff!.tenant.id, req.params.id);
   assertClientVisible(req, ob.clientId);
   res.json(await formPack(req.staff!.tenant.id, ob.id));
+}));
+
+/** Filings uploaded on MCA and waiting for its decision (stage FILED), with their SRNs — what the panel looks for. */
+extRouter.get('/filed', h(async (req, res) => {
+  const scope = clientScope(req);
+  res.json(await db.select({ id: o.id, form: o.form, fy: o.fy, periodLabel: o.periodLabel, srn: o.srn, filedOn: o.filedOn, stage: o.stage, clientName: c.name })
+    .from(o).innerJoin(c, eq(c.id, o.clientId))
+    .where(and(eq(o.tenantId, req.staff!.tenant.id), eq(o.stage, 'FILED'), isNotNull(o.srn), scope ? inArray(o.clientId, scope.length ? scope : ['-']) : undefined))
+    .orderBy(asc(o.filedOn)).limit(500));
+}));
+
+const statusInput = z.object({ updates: z.array(z.object({
+  obligationId: z.string(), srn: z.string().trim().toUpperCase(), status: z.enum(['APPROVED', 'RESUBMIT', 'REJECTED']),
+  phrase: z.string().trim().max(80).nullish(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+})).min(1).max(100) });
+
+/** Apply statuses the user ticked in the panel: approved → "Approved by MCA"; resubmission / rejected → "MCA asked for resubmission". */
+extRouter.post('/srn-status', h(async (req, res) => {
+  if (!req.staff!.permissions.has('compliance.work')) throw new HttpError(403, 'You don’t have permission to update filings');
+  const body = parse(statusInput, req.body);
+  const results = [];
+  for (const u of body.updates) {
+    try {
+      const ob = await getObligation(req.staff!.tenant.id, u.obligationId);
+      assertClientVisible(req, ob.clientId);
+      if ((ob.srn ?? '').toUpperCase() !== u.srn) throw new HttpError(409, 'SRN doesn’t match this filing');
+      const seen = `MCA portal shows “${u.phrase ?? u.status.toLowerCase()}”${u.date ? ` (${u.date})` : ''} — read by the ComplyDesk extension.`;
+      const note = u.status === 'REJECTED' ? `Rejected by MCA. ${seen} File again.` : seen;
+      await move(ob, req.staff!, { action: u.status === 'APPROVED' ? 'approved' : 'resubmit', note, srn: null });
+      await audit(req, 'obligation.mca_status', 'obligation', ob.id, u);
+      results.push({ obligationId: u.obligationId, ok: true });
+    } catch (e: any) { results.push({ obligationId: u.obligationId, ok: false, error: e.message }); }
+  }
+  res.json({ results, updated: results.filter((r) => r.ok).length });
 }));
 
 // ---- For the signed-in user (cookie session) -----------------------------------------------------------------

@@ -21,3 +21,11 @@ Tests: `server/tests/extension.test.ts` (matching), `server/scripts/smoke-ext.ts
 The portal's real labels aren't published: the matching was built on MCA's instruction-kit wording and a mock form. Check it on the live portal and add aliases in forms.ts where a field isn't matched.
 
 Next: publish on the Chrome Web Store (so firms install with one click instead of Developer mode).
+
+
+## Filing status (SRNs) from the portal
+
+- Pure `extension/lib/srn.js` (tested in `server/tests/extension.test.ts`): SRN tokens, status phrases in order (rejected / not approved → resubmission → pending → approved), latest date on the row, one SRN per row, whole-page reads marked not `sure`.
+- `content.js` `rows()` returns visible rows (tr, role=row, li, cards) that contain an SRN — read only.
+- API: `GET /api/ext/filed` (stage FILED with an SRN) and the extension's one write, `POST /api/ext/srn-status` (compliance.work; SRN must match the filing; applied through `services/workflow.move` — `approved`, or `resubmit` for resubmission / rejection — with a note saying it was read from the portal; audit `obligation.mca_status`). CORS for the extension allows GET and POST.
+- Harness: `extension-test/mock-mca-history.html?rows=SRN|FORM|STATUS,…` with `harness.html?mca=…`.

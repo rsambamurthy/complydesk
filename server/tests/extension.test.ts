@@ -34,3 +34,38 @@ describe('extension: matching portal labels', () => {
   });
   it('dates for date inputs', () => expect(toIsoDate('22/09/2026')).toBe('2026-09-22'));
 });
+
+// @ts-ignore — plain JS module shared with the Chrome extension
+import { classifyStatus, readStatuses, lastDate } from '../../extension/lib/srn.js';
+describe('extension: filing status from MCA pages', () => {
+  it('reads the status words, negatives first', () => {
+    expect(classifyStatus('AB1234567 MGT-7 Approved')?.status).toBe('APPROVED');
+    expect(classifyStatus('Not Approved')?.status).toBe('REJECTED');
+    expect(classifyStatus('Pending for Approval')?.status).toBe('PENDING');
+    expect(classifyStatus('Marked for Resubmission (RSUB)')?.status).toBe('RESUBMIT');
+    expect(classifyStatus('Under Processing')?.status).toBe('PENDING');
+    expect(classifyStatus('Download')).toBeNull();
+  });
+  it('takes the latest date on the row', () => {
+    expect(lastDate('Filed 21/10/2026 approved 05-11-2026')).toBe('2026-11-05');
+    expect(lastDate('on 3 Nov 2026')).toBe('2026-11-03');
+    expect(lastDate('no date')).toBeNull();
+  });
+  it('matches known SRNs on their own row only', () => {
+    const rows = [
+      'Sr. SRN Form Date Status',
+      '1 F80412233 AOC-4 20/10/2026 Approved 02/11/2026',
+      '2 F42670314 DPT-3 27/06/2026 Pending for Approval',
+      '3 AB1234567 MGT-7 Under Processing',
+      'F11111111 and F22222222 both here Approved',
+      { text: 'Menu Rejected applications … SRN AB7654321 details Approved', whole: true },
+    ];
+    const out = readStatuses(rows, ['F80412233', 'F42670314', 'F11111111', 'AB7654321', 'ZZ0000000']);
+    expect(out.F80412233).toMatchObject({ status: 'APPROVED', date: '2026-11-02', sure: true });
+    expect(out.F42670314.status).toBe('PENDING');
+    expect(out.AB1234567).toBeUndefined();
+    expect(out.F11111111).toBeUndefined();
+    expect(out.AB7654321).toMatchObject({ status: 'REJECTED', sure: false });
+    expect(out.ZZ0000000).toBeUndefined();
+  });
+});

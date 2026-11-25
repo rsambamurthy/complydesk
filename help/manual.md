@@ -390,6 +390,17 @@ Fill a form:
 
 A connection code can only read form data of the clients you can see. Disconnect a browser on the MCA form filler page when you no longer use it.
 
+### Filing status from the MCA portal
+
+Filings marked **Uploaded on MCA** wait for MCA's decision. Instead of checking each SRN by hand:
+
+1. On the MCA portal, open **Application History** (or **Track SRN status**).
+2. In the ComplyDesk panel, under **MCA filing status**, press **Read this page**.
+3. The panel lists your filings awaiting MCA whose SRN is on the page, with the status beside it — approved, resubmission, rejected, or still pending.
+4. Tick the ones to update and press **Update in ComplyDesk**. Approved filings move to **Approved by MCA**; resubmission or rejection moves them back to **MCA asked for resubmission**. The filing's history notes that the status was read from the portal, by whom and when.
+
+Nothing changes until you press Update, and the extension never clicks anything on the portal. A status read from a whole page (not a table row) is left unticked for you to check.
+
 ## 10. Billing
 
 **Billing** in the menu (Firm Admins and Partners) turns filed work into GST invoices and tracks what clients owe.

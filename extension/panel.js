@@ -1,18 +1,24 @@
 /**
- * ComplyDesk side panel: connect to ComplyDesk, pick a filing, find its fields on the MCA page, fill the ones you tick.
- * Talks to the page only through content.js (injected on demand). Never submits, never signs.
+ * ComplyDesk side panel: connect to ComplyDesk, pick a filing, find its fields on the MCA page, fill the ones you tick;
+ * or read filing status (SRNs) from the portal's Application History and update ComplyDesk after you confirm.
+ * Talks to the page only through content.js (injected on demand). Never clicks, submits or signs on the portal.
  */
 import { matchFields } from './lib/match.js';
+import { readStatuses } from './lib/srn.js';
 
 const $app = document.getElementById('app');
 const $who = document.getElementById('who');
-const state = { conn: null, filings: [], q: '', pack: null, page: [], matches: {}, tick: {}, results: {}, msg: null, busy: false };
+const state = { conn: null, filings: [], q: '', pack: null, page: [], matches: {}, tick: {}, results: {}, msg: null, busy: false, srn: null };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmtDate = (d) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
 
 // ---- ComplyDesk API (Bearer token from "Connect the browser extension" in ComplyDesk) --------------------------
-async function api(path) {
-  const r = await fetch(`${state.conn.base}/api/ext${path}`, { headers: { Authorization: `Bearer ${state.conn.token}` } });
+async function api(path, body) {
+  const r = await fetch(`${state.conn.base}/api/ext${path}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { Authorization: `Bearer ${state.conn.token}`, ...(body ? { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const j = await r.json().catch(() => ({}));
   if (r.status === 401) { await disconnect(); throw new Error(j.error ?? 'Connect again'); }
   if (!r.ok) throw new Error(j.error ?? `ComplyDesk said ${r.status}`);
@@ -84,6 +90,50 @@ async function putInFocused(key) {
 }
 const flash = (ref) => { const p = state.page.find((x) => x.ref === ref); if (p) inPage((r) => window.__cdx.flash(r), [ref], [p.frameId]).catch(() => {}); };
 
+// ---- Filing status from the MCA portal ------------------------------------------------------------------------
+const STATUS_TEXT = { APPROVED: 'Approved → mark “Approved by MCA”', RESUBMIT: 'Resubmission → mark “MCA asked for resubmission”', REJECTED: 'Rejected → back to you to file again', PENDING: 'Still pending at MCA — no change' };
+async function readSrnStatuses() {
+  const filed = await api('/filed');
+  if (!filed.length) { state.srn = { items: [], filed: 0 }; state.msg = { kind: 'warn', text: 'No filings in ComplyDesk are waiting for MCA (stage “Filed” with an SRN).' }; return; }
+  const res = await inPage(() => window.__cdx.rows());
+  const rows = res.flatMap((r) => r.result ?? []);
+  const found = readStatuses(rows, filed.map((f) => f.srn));
+  const items = filed.filter((f) => found[f.srn]).map((f) => ({ ...f, read: found[f.srn] }));
+  state.srn = { items, filed: filed.length, tick: Object.fromEntries(items.map((i) => [i.id, ['APPROVED', 'RESUBMIT', 'REJECTED'].includes(i.read.status) && i.read.sure])), results: {} };
+  state.msg = items.length
+    ? { kind: 'ok', text: `Found ${items.length} of your ${filed.length} filings awaiting MCA on this page. Tick the ones to update.` }
+    : { kind: 'warn', text: `None of your ${filed.length} SRNs awaiting MCA are on this page. Open Application History (or Track SRN status) on the portal, then read again.` };
+}
+async function applyStatuses() {
+  const updates = state.srn.items.filter((i) => state.srn.tick[i.id] && i.read.status !== 'PENDING' && i.read.status)
+    .map((i) => ({ obligationId: i.id, srn: i.srn, status: i.read.status, phrase: i.read.phrase, date: i.read.date }));
+  const r = await api('/srn-status', { updates });
+  for (const x of r.results) state.srn.results[x.obligationId] = x;
+  state.msg = { kind: r.updated === updates.length ? 'ok' : 'warn', text: `Updated ${r.updated} filing${r.updated === 1 ? '' : 's'} in ComplyDesk${r.updated < updates.length ? `; ${updates.length - r.updated} couldn’t be updated (see below)` : ''}.` };
+}
+function srnCard() {
+  const s = state.srn;
+  const head = `<div class="card"><div class="row"><h2 class="grow">MCA filing status</h2><button id="srnread" ${state.busy ? 'disabled' : ''}>Read this page</button></div>
+    <p class="muted small" style="margin:0">On the portal, open <b>Application History</b> (or <b>Track SRN status</b>), then press <b>Read this page</b>. ComplyDesk looks for the SRNs of your filings awaiting MCA and the status beside them.</p>`;
+  if (!s) return `${head}</div>`;
+  const n = s.items.filter((i) => s.tick[i.id] && i.read.status && i.read.status !== 'PENDING' && !s.results[i.id]?.ok).length;
+  return `${head}
+    ${s.items.map((i) => { const r = s.results[i.id]; const can = i.read.status && i.read.status !== 'PENDING'; return `<div class="fld">
+      <div class="top">${can && !r?.ok ? `<input type="checkbox" data-srn="${i.id}" ${s.tick[i.id] ? 'checked' : ''} style="width:auto">` : ''}<span class="lab"><b>${esc(i.form)}</b> · ${esc(i.clientName)}</span></div>
+      <div class="small mono">SRN ${esc(i.srn)} · filed ${fmtDate(i.filedOn)}</div>
+      <div class="small ${i.read.status === 'APPROVED' ? 'ok' : i.read.status === 'PENDING' || !i.read.status ? 'muted' : 'bad'}">${i.read.status ? `Portal: “${esc(i.read.phrase)}”${i.read.date ? ` · ${fmtDate(i.read.date)}` : ''} — ${STATUS_TEXT[i.read.status]}` : 'No status found next to this SRN'}</div>
+      ${!i.read.sure && can ? '<div class="small muted">Read from the whole page, not a row — check before ticking.</div>' : ''}
+      ${r ? `<div class="small ${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓ Updated in ComplyDesk' : `✗ ${esc(r.error)}`}</div>` : ''}
+    </div>`; }).join('')}
+    ${s.items.length ? `<button class="primary" id="srnapply" ${!n || state.busy ? 'disabled' : ''}>Update ${n} filing${n === 1 ? '' : 's'} in ComplyDesk</button>` : ''}
+  </div>`;
+}
+function bindSrn() {
+  on('#srnread', 'click', () => run(readSrnStatuses));
+  on('#srnapply', 'click', () => run(applyStatuses));
+  document.querySelectorAll('[data-srn]').forEach((el) => el.addEventListener('change', () => { state.srn.tick[el.dataset.srn] = el.checked; render(); }));
+}
+
 // ---- Rendering ----------------------------------------------------------------------------------------------
 function render() {
   $who.textContent = state.conn?.who ?? '';
@@ -103,7 +153,8 @@ function render() {
       <h2>Which filing are you entering?</h2>
       <div class="row"><input id="q" placeholder="Search company, CIN or form" value="${esc(state.q)}"><button id="go">Search</button></div>
       <div class="list" style="margin-top:8px">${state.filings.length ? state.filings.map((f) => `<button class="filing" data-id="${f.id}"><span><b>${esc(f.form)}</b> · ${esc(f.clientName)}</span><span class="muted small">${esc(f.periodLabel || `FY ${f.fy}-${String((f.fy + 1) % 100).padStart(2, '0')}`)} · due ${fmtDate(f.dueDate)}</span></button>`).join('') : '<p class="muted small">No open filings with MCA form data.</p>'}</div>
-      </div><p class="small"><button class="link" id="disc">Disconnect</button></p>`;
+      </div>${srnCard()}<p class="small"><button class="link" id="disc">Disconnect</button></p>`;
+    bindSrn();
     const search = () => { state.q = val('#q'); run(loadFilings); };
     on('#go', 'click', search);
     on('#q', 'keydown', (e) => e.key === 'Enter' && search());

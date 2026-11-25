@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- A stand-in for the MCA V3 "Application History" page: rows of SRN, form, dates and status.
+     Rows come from the query string: ?rows=SRN|FORM|STATUS,SRN|FORM|STATUS -->
+<html><head><meta charset="utf-8"><title>Application History | MCA</title>
+<style>body{font-family:Arial,sans-serif;margin:0;color:#222} header{background:#0b3d91;color:#fff;padding:12px 18px} nav a{color:#fff;margin-right:14px;font-size:13px}
+main{padding:18px} table{border-collapse:collapse;width:100%;font-size:13px} th,td{border:1px solid #ccc;padding:7px 8px;text-align:left} th{background:#eef2f8}
+.st{font-weight:bold}</style></head>
+<body>
+<header><b>Ministry of Corporate Affairs</b> &nbsp; <nav style="display:inline"><a>Home</a><a>MCA Services</a><a>Rejected applications help</a><a>My Workspace</a></nav></header>
+<main>
+<h2>Application History</h2>
+<p style="font-size:13px">Applications filed from your login. Status is updated after processing at the Registrar of Companies.</p>
+<table><thead><tr><th>Sr. No.</th><th>SRN</th><th>Form</th><th>Company Name</th><th>Date of filing</th><th>Status</th><th>Last updated</th></tr></thead><tbody id="rows"></tbody></table>
+</main>
+<script>
+const rows = new URLSearchParams(location.search).get('rows') || '';
+document.getElementById('rows').innerHTML = rows.split(',').filter(Boolean).map((r, i) => {
+  const [srn, form, status, company] = r.split('|');
+  return `<tr><td>${i + 1}</td><td>${srn}</td><td>${form}</td><td>${company || ''}</td><td>2${i}/10/2026</td><td class="st">${status}</td><td>0${(i % 8) + 1}/11/2026</td></tr>`;
+}).join('');
+</script>
+</body></html>

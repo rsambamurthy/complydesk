@@ -21,7 +21,7 @@ export function Extension() {
   return (
     <div className="page">
       <div className="page-head">
-        <div><h1>MCA form filler</h1><p className="muted">A Chrome extension that fills MCA V3 web forms from ComplyDesk’s form data, next to the portal. You check, save, sign with DSC and submit on the portal as usual — it never submits.</p></div>
+        <div><h1>MCA form filler</h1><p className="muted">A Chrome extension that fills MCA V3 web forms from ComplyDesk’s form data, next to the portal, and reads filing status back from it. You check, save, sign with DSC and submit on the portal as usual — it never submits.</p></div>
         <div className="head-actions"><a className="btn btn-primary" href="/api/extension.zip">Download the extension</a></div>
       </div>
       <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14 }}>
@@ -45,6 +45,16 @@ export function Extension() {
             <li>Check the matches (change any that are wrong), then <b>Fill</b>. Filled fields get a green outline.</li>
             <li>For anything not matched: click into the portal field, then <b>Put in selected field</b>. Tables: <b>Copy for Excel</b> into MCA’s template.</li>
           </ol>
+        </section>
+        <section className="card pad">
+          <h3 style={{ marginTop: 0 }}>MCA filing status</h3>
+          <ol className="small" style={{ margin: 0, paddingInlineStart: 18, display: 'grid', gap: 6 }}>
+            <li>On the MCA portal, open <b>Application History</b> (or <b>Track SRN status</b>).</li>
+            <li>In the ComplyDesk panel, press <b>Read this page</b> under <b>MCA filing status</b>.</li>
+            <li>It lists your filings awaiting MCA whose SRN is on the page, with the status shown: approved, resubmission, rejected or still pending.</li>
+            <li>Tick the ones to update and press <b>Update in ComplyDesk</b> — approved filings move to <b>Approved by MCA</b>; resubmission or rejection moves them back to you, with a note in the filing’s history.</li>
+          </ol>
+          <p className="muted small" style={{ marginBottom: 0 }}>Nothing changes in ComplyDesk until you press Update; nothing is clicked on the portal.</p>
         </section>
       </div>
       <section className="card" style={{ marginTop: 14 }}>

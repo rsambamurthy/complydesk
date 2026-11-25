@@ -29,6 +29,20 @@ const pack = await ext.call(`/ext/filings/${list[0].id}/form`);
 ok(pack.parts[0].fields[0].aliases?.includes('CIN'), 'form data with portal aliases');
 await ext.call('/clients', { expect: 401 });
 ok(true, 'token can’t use the rest of the API');
+// Filing status read from the MCA portal
+const filed = await ext.call('/ext/filed');
+ok(filed.length >= 3 && filed.every((f: any) => f.stage === 'FILED' && f.srn), `${filed.length} filings awaiting MCA, with SRNs`);
+const st = await ext.call('/ext/srn-status', { body: { updates: [
+  { obligationId: filed[0].id, srn: filed[0].srn, status: 'APPROVED', phrase: 'Approved', date: '2026-11-01' },
+  { obligationId: filed[1].id, srn: filed[1].srn, status: 'RESUBMIT', phrase: 'Marked for Resubmission' },
+  { obligationId: filed[2].id, srn: 'X00000000', status: 'APPROVED', phrase: 'Approved' },
+] } });
+ok(st.updated === 2 && st.results[2].error.includes('SRN'), 'approved and resubmission applied; wrong SRN refused');
+const hist = (await exec.call(`/obligations/${filed[0].id}`)).history;
+ok(hist.some((h: any) => h.action === 'approved' && h.note.includes('read by the ComplyDesk extension') && h.userName === 'Karthik S'), 'history: approved, by whom, read from the portal');
+const again = await ext.call('/ext/srn-status', { body: { updates: [{ obligationId: filed[0].id, srn: filed[0].srn, status: 'APPROVED' }] } });
+ok(again.updated === 0, 'already approved: nothing to do');
+ok(!(await ext.call('/ext/filed')).some((f: any) => f.id === filed[0].id || f.id === filed[1].id), 'they drop off the awaiting-MCA list');
 const conns = await exec.call('/auth/extension-tokens');
 ok(conns.length === 1 && conns[0].lastUsedAt, 'connection listed with last use');
 const zip = await exec.call('/extension.zip', { raw: true });

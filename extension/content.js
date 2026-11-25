@@ -1,6 +1,7 @@
 /**
  * Runs inside the MCA portal page (each frame), injected by the side panel. Finds the form's fields with their
- * labels, fills the ones the user approved, and highlights them. It never clicks buttons, submits or signs.
+ * labels, fills the ones the user approved, and highlights them; reads SRN rows for filing status. It never clicks
+ * buttons, submits or signs.
  */
 (() => {
   if (window.__cdx) return;
@@ -91,5 +92,15 @@
     return true;
   }
 
-  window.__cdx = { scan, fill, fillFocused, flash, labelFor };
+  /** Rows of text that could hold an SRN and its status: table rows, grid rows, list items, small cards. Read only. */
+  function rows() {
+    const seen = new Set(); const out = [];
+    const add = (el) => { const t = text(el); if (t && t.length <= 600 && !seen.has(t)) { seen.add(t); out.push({ text: t }); } };
+    document.querySelectorAll('tr, [role=row], li, mat-row, .mat-row, .row, .card, dl').forEach((el) => { if (/[A-Z]{1,2}\d{7,8}/.test(text(el))) add(el); });
+    // A details page (Track SRN): the whole visible text, in blocks.
+    if (!out.length) { const t = text(document.body); if (/[A-Z]{1,2}\d{7,8}/.test(t)) out.push({ text: t.slice(0, 4000), whole: true }); }
+    return out;
+  }
+
+  window.__cdx = { scan, fill, fillFocused, flash, labelFor, rows };
 })();
