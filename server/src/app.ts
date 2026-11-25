@@ -18,6 +18,7 @@ import { extractRouter } from './routes/extract.js';
 import { helpRouter } from './routes/help.js';
 import { registersRouter } from './routes/registers.js';
 import { billingRouter } from './routes/billing.js';
+import { teamRouter } from './routes/team.js';
 import { platformRegRouter, regulatoryRouter } from './routes/regulatory.js';
 import { extRouter, extTokensRouter, extDownload } from './routes/ext.js';
 import { requireExtension } from './auth/session.js';
@@ -61,6 +62,7 @@ export function createApp() {
   // Help works in a read-only workspace too (asking logs a question, it changes no records).
   app.use('/api/help', requireStaff, helpRouter);
   app.use('/api/regulatory', requireStaff, requireWritable, regulatoryRouter);
+  app.use('/api/team', requireStaff, requireWritable, teamRouter);
   app.use('/api/billing', requireStaff, requireWritable, billingRouter);
   app.use('/api/registers', requireStaff, requireWritable, registersRouter);
   app.use('/api/extract', requireStaff, requireWritable, extractRouter);

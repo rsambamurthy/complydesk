@@ -114,6 +114,20 @@ for (const x of await db.select().from(o).where(eq(o.tenantId, t))) {
   });
 }
 
+// Time logged this month by the team (Team page).
+{
+  const admin = (await db.select().from(schema.users).where(eq(schema.users.email, 'admin@demo.in')))[0];
+  const marina = (await db.select().from(schema.clients).where(eq(schema.clients.cin, 'U51909TN2019PTC129876')))[0];
+  const month = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 8);
+  const day = (n: number) => `${month}${String(Math.min(n, Number(new Date(Date.now() + 330 * 60_000).toISOString().slice(8, 10)))).padStart(2, '0')}`;
+  await db.insert(schema.timeEntries).values([
+    { tenantId: t, userId: exec.id, clientId: kaveri.id, date: day(3), minutes: 150, note: 'MGT-7 data collection' },
+    { tenantId: t, userId: exec.id, clientId: kaveri.id, date: day(10), minutes: 90, note: 'Registers update' },
+    { tenantId: t, userId: admin.id, clientId: kaveri.id, date: day(12), minutes: 60, note: 'Review of AOC-4' },
+    { tenantId: t, userId: exec.id, clientId: marina.id, date: day(5), minutes: 120, note: 'MGT-7A and board minutes' },
+  ]);
+}
+
 console.log('Seeded demo workspace: workspace "demo", admin@demo.in / Demo@12345');
 }
 

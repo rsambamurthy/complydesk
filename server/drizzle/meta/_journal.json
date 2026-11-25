@@ -113,6 +113,13 @@
       "when": 1795639366272,
       "tag": "0015_slimy_rachel_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795639771995,
+      "tag": "0016_daily_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

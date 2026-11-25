@@ -2,6 +2,7 @@
  * Obligations, shared by the dashboard, the compliance calendar and a client's Compliance tab:
  * the table, the update dialog (status, held/filed date, SRN, assignee) and the "Add event-based filing" dialog.
  */
+import { TimeLog } from './TimeLog';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -218,6 +219,8 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
       {challan && meta && <ReadDocument kinds={['SRN_CHALLAN']} obligationId={o.id} meta={meta} title="Read the challan"
         onClose={() => setChallan(false)} onDone={(r) => { if (r.srn) setSrn(r.srn); if (r.filedOn) setFiledOn(r.filedOn); setFilesKey((k) => k + 1); }} />}
       <Attachments key={filesKey} onChange={() => setFilesKey((k) => k + 1)} entity="obligation" entityId={o.id} canAdd={can('compliance.work') || can('compliance.client_approve')} canRemove={can('compliance.work') && !clientUser} />
+
+      <TimeLog obligationId={o.id} />
 
       <h4 style={{ margin: '16px 0 6px' }}>History</h4>
       {data.history.length === 0 ? <p className="muted small">Nothing yet.</p> : (

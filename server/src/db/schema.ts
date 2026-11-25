@@ -702,3 +702,16 @@ export const messageLog = pgTable('message_log', {
   providerId: text('provider_id'),
   createdAt: createdAt(),
 }, (t) => [index('message_log_tenant_ix').on(t.tenantId, t.createdAt), index('message_log_ref_ix').on(t.ref)]);
+
+/** Time spent on a client (optionally on one filing or meeting) — for the team workload and fee planning. */
+export const timeEntries = pgTable('time_entries', {
+  id: id(),
+  tenantId: tenantId(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  obligationId: text('obligation_id').references(() => obligations.id, { onDelete: 'set null' }),
+  date: date('date').notNull(),
+  minutes: integer('minutes').notNull(),
+  note: text('note'),
+  createdAt: createdAt(),
+}, (t) => [index('time_entries_tenant_ix').on(t.tenantId, t.date), index('time_entries_client_ix').on(t.clientId)]);

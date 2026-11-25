@@ -1066,3 +1066,10 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .reg-clients { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
 .doc-reqs { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
 .doc-req { border-top: 1px dashed var(--line); padding-top: 8px; } .doc-req.received, .doc-req.cancelled { opacity: .7; }
+
+/* Team */
+.load-bar { position: relative; display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); } .load-bar span { display: block; height: 8px; border-radius: 4px; background: var(--brand-100); min-width: 4px; }
+.tile-warn { color: var(--warn); }
+.time-log { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; }
+.time-add { display: grid; grid-template-columns: 140px 120px 1fr auto; gap: 6px; } @media (max-width: 640px) { .time-add { grid-template-columns: 1fr 1fr; } }
+.time-row { display: flex; gap: 4px; align-items: center; padding: 2px 0; } .time-row button { margin-inline-start: auto; }

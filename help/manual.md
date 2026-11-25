@@ -456,6 +456,12 @@ When Integrata has connected the WhatsApp Business number and you switch on **Ad
 
 Record each person's mobile and their consent under **Users** (or when adding a client user). WhatsApp requires consent — tick it only when the person has given it. **Settings → WhatsApp messages** shows what was sent.
 
+### Team and time
+
+**Team** in the menu (Firm Admins and Partners) shows, for this month, last month or the FY: each person's open work (click through to their list), overdue, due in 7 days, stuck (being worked on, no step in 14 days), reviews waiting, filings they filed, and hours logged; plus filings nobody is assigned to. **Time by client** shows hours per client and who spent them, next to what you invoiced in the period — ₹ per hour.
+
+Log time on a filing (**Time spent** at the bottom of the filing window) or with **Log time** on the Team page. Everyone sees their own time; Firm Admins and Partners see everyone's.
+
 ## 12. Administration
 
 Firm Admins run the workspace from the Administration menu; Integrata runs the platform from its own console.
