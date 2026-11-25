@@ -628,3 +628,38 @@ export const aiDrafts = pgTable('ai_drafts', {
   outputTokens: integer('output_tokens'),
   createdAt: createdAt(),
 }, (t) => [index('ai_drafts_tenant_ix').on(t.tenantId, t.createdAt)]);
+
+/**
+ * Regulatory updates (MCA notifications, circulars, amended rules) published by Integrata for every firm.
+ * `applies` says which companies are affected (same shape as a rule's); `forms` the rule codes it touches.
+ */
+export const regUpdates = pgTable('reg_updates', {
+  id: id(),
+  title: text('title').notNull(),
+  /** e.g. "MCA notification G.S.R. 880(E)" */
+  source: text('source'),
+  url: text('url'),
+  issuedOn: date('issued_on'),
+  effectiveFrom: date('effective_from'),
+  summary: text('summary').notNull(),
+  /** What a firm should do, one per line. */
+  actions: text('actions'),
+  applies: jsonb('applies').$type<{ types?: string[]; small?: boolean; flags?: string[]; all?: boolean }>().notNull().default({}),
+  forms: jsonb('forms').$type<string[]>().notNull().default([]),
+  /** HIGH | MEDIUM | LOW */
+  impact: text('impact').notNull().default('MEDIUM'),
+  /** DRAFT | PUBLISHED */
+  status: text('status').notNull().default('DRAFT'),
+  createdBy: text('created_by'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('reg_updates_status_ix').on(t.status, t.publishedAt)]);
+
+/** A firm marking an update as reviewed (once per firm). */
+export const regReviews = pgTable('reg_reviews', {
+  tenantId: tenantId(),
+  updateId: text('update_id').notNull().references(() => regUpdates.id, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  note: text('note'),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.tenantId, t.updateId] })]);

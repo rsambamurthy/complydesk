@@ -23,6 +23,7 @@ export function Shell() {
       { to: '/calendar', label: 'Compliance calendar', icon: 'calendar', show: can('clients.view') },
       { to: '/meetings', label: 'Meetings', icon: 'meeting', show: can('clients.view') },
       { to: '/extension', label: 'MCA form filler', icon: 'upload', show: can('compliance.work') && !me?.user.clientIds.length },
+      { to: '/regulatory', label: 'Regulatory updates', icon: 'rules', show: can('clients.view') && !me?.user.clientIds.length },
       { to: '/billing', label: 'Billing', icon: 'billing', show: can('billing.view') && !me?.user.clientIds.length },
     ]),
     group('clients', 'Clients', 'clients', [
@@ -32,6 +33,7 @@ export function Shell() {
     me.platformAdmin ? group('platform', 'Integrata platform', 'shield', [
       { to: '/platform', label: 'Firms & sign-up', icon: 'shield', end: true, show: true },
       { to: '/platform/rules', label: 'Built-in rules', icon: 'rules', show: true },
+      { to: '/platform/updates', label: 'Regulatory updates', icon: 'mail', show: true },
     ]) : null,
     group('admin', 'Administration', 'config', [
       { to: '/admin/settings', label: 'Settings', icon: 'config', show: can('tenant.settings') },

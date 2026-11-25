@@ -401,6 +401,10 @@ Filings marked **Uploaded on MCA** wait for MCA's decision. Instead of checking 
 
 Nothing changes until you press Update, and the extension never clicks anything on the portal. A status read from a whole page (not a table row) is left unticked for you to check.
 
+### Regulatory updates
+
+**Regulatory updates** in the menu lists changes in company law and MCA procedure that Integrata has summarised — what changed, from when, what to do, which forms it touches — with **the clients of yours it affects** (by company type, small-company status and flags such as MSME dues). Firm Admins get an email when an update affecting their clients is published, and the dashboard shows a banner until someone presses **Mark reviewed** (with an optional note for the team). Always read the notification itself (the link) before acting.
+
 ## 10. Billing
 
 **Billing** in the menu (Firm Admins and Partners) turns filed work into GST invoices and tracks what clients owe.
@@ -463,6 +467,10 @@ Changing a rule re-works every client's calendar at once. The rules guide on tha
 - **Firms & sign-up** — every firm with status (pending approval, trial, active, trial ended, payment due, suspended), clients and users; approve, extend a trial, mark paid, suspend; the switch that makes new sign-ups wait for approval; trial length and trial client limit; a test email.
 
 - **Built-in rules** — Integrata's version of each compliance rule, used by every firm that hasn't made its own. Software updates never overwrite Integrata's edits.
+
+### Regulatory updates (Integrata only)
+
+**Integrata platform → Regulatory updates**: paste a notification's text or attach its PDF and press **Summarise** — the AI fills the headline, summary, actions, who it applies to, forms and impact. Check every line against the source, save, then **Publish**: every firm sees it with its affected clients, and their Firm Admins get an email.
 
 ## 13. FAQ and troubleshooting
 

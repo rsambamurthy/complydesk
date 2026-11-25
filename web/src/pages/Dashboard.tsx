@@ -5,6 +5,7 @@ import { ObligationTable } from '../components/Obligations';
 import { Alert, Spinner } from '../components/ui';
 import { fmtDate } from '../lib/format';
 import { useSession } from '../lib/session';
+import { RegBanner } from './Regulatory';
 
 interface Dash { all: Summary; mine: Summary; attention: { id: string; name: string; cin: string; overdue: number; due30: number; nextDue: string | null }[] }
 
@@ -22,6 +23,7 @@ export function Dashboard() {
     <div className="page">
       <div className="page-head"><div><h1>Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {me!.user.name.split(' ')[0]}</h1><p className="muted">Where every client stands today.</p></div></div>
       {all.open + all.done === 0 && <GettingStarted />}
+      <RegBanner />
       <Waiting all={all} />
       <div className="tiles" style={{ gridTemplateColumns: 'repeat(5, minmax(0,1fr))' }}>
         <Tile to="/calendar?bucket=overdue" n={all.overdue} label="Overdue" bad={all.overdue > 0} sub={mine.overdue ? `${mine.overdue} with you` : undefined} />

@@ -103,6 +103,17 @@ for (const x of await db.select().from(o).where(eq(o.tenantId, t))) {
   await issueInvoice(tn, b.id);
 }
 
+// A published regulatory update (platform-wide), not yet reviewed by the demo firm.
+{
+  const [has] = await db.select({ id: schema.regUpdates.id }).from(schema.regUpdates).limit(1);
+  if (!has) await db.insert(schema.regUpdates).values({
+    title: 'Small company limits raised: paid-up up to ₹10 crore, turnover up to ₹100 crore', source: 'MCA notification G.S.R. 880(E)', issuedOn: '2025-12-01', effectiveFrom: '2025-12-01',
+    summary: 'The thresholds for a "small company" under Section 2(85) are raised to paid-up capital of up to ₹10 crore and turnover of up to ₹100 crore. More private companies now qualify: fewer board meetings, MGT-7A instead of MGT-7 and lighter reporting.',
+    actions: 'Recheck the small-company status of private clients with paid-up capital up to ₹10 crore and turnover up to ₹100 crore\nUpdate “Small company” on each client so MGT-7A and board-meeting rules follow',
+    applies: { types: ['PRIVATE'], small: false }, forms: ['MGT7', 'MGT7A', 'BM_QUARTERLY', 'BM_HALF_YEARLY'], impact: 'HIGH', status: 'PUBLISHED', publishedAt: new Date('2025-12-02'), createdBy: 'seed',
+  });
+}
+
 console.log('Seeded demo workspace: workspace "demo", admin@demo.in / Demo@12345');
 }
 

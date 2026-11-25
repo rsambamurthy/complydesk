@@ -16,6 +16,8 @@ import { MeetingDetail } from './pages/MeetingDetail';
 import { MeetingPrint } from './pages/MeetingPrint';
 import { RegisterPrint } from './pages/RegisterPrint';
 import { Billing } from './pages/Billing';
+import { Regulatory } from './pages/Regulatory';
+import { PlatformRegUpdates } from './pages/PlatformRegUpdates';
 import { InvoiceDetail } from './pages/InvoiceDetail';
 import { InvoicePrint } from './pages/InvoicePrint';
 import { ClientReport } from './pages/ClientReport';
@@ -52,6 +54,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/filings/:id/form" element={<FormPack />} />
             <Route path="/extension" element={<Extension />} />
             <Route path="/billing" element={<Billing />} />
+            <Route path="/regulatory" element={<Regulatory />} />
+            <Route path="/platform/updates" element={<PlatformRegUpdates />} />
             <Route path="/billing/invoices/:id" element={<InvoiceDetail />} />
             <Route path="/help" element={<Help />} />
             <Route path="/help/:id" element={<Help />} />
