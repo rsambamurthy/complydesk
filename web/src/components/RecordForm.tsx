@@ -29,10 +29,11 @@ export function useRecordForm(initial: Record<string, any>) {
       setError(e instanceof Error ? e.message : String(e)); return false;
     } finally { setBusy(false); }
   }
-  return { values, set, errors, error, busy, submit };
+  return { values, set, errors, setErrors, error, setError, busy, submit };
 }
 
-export function Fields({ fields, form }: { fields: FieldDef[]; form: ReturnType<typeof useRecordForm> }) {
+/** `check`: { field: message } for values a person should look at (e.g. read from a document and unclear). */
+export function Fields({ fields, form, check }: { fields: FieldDef[]; form: ReturnType<typeof useRecordForm>; check?: Record<string, string> }) {
   const { values, set, errors } = form;
   return (
     <div className="field-grid">
@@ -40,6 +41,7 @@ export function Fields({ fields, form }: { fields: FieldDef[]; form: ReturnType<
         const id = `f-${f.key}`;
         const err = errors[f.key];
         const v = values[f.key];
+        const chk = !err && check?.[f.key];
         if (f.type === 'checkbox') return (
           <label key={f.key} className={`check-item ${f.wide ? 'field-wide' : ''}`}>
             <input type="checkbox" checked={!!v} onChange={(e) => set(f.key, e.target.checked)} />
@@ -65,7 +67,7 @@ export function Fields({ fields, form }: { fields: FieldDef[]; form: ReturnType<
           </fieldset>
         );
         return (
-          <div key={f.key} className={`field ${f.wide ? 'field-wide' : ''} ${err ? 'has-error' : ''}`}>
+          <div key={f.key} className={`field ${f.wide ? 'field-wide' : ''} ${err ? 'has-error' : ''} ${chk ? 'needs-check' : ''}`}>
             <label htmlFor={id}>{f.label}{f.required && <span className="req"> *</span>}</label>
             {f.type === 'select' ? (
               <select id={id} value={v ?? ''} onChange={(e) => set(f.key, e.target.value || null)}>
@@ -77,7 +79,7 @@ export function Fields({ fields, form }: { fields: FieldDef[]; form: ReturnType<
             ) : (
               <input id={id} type={f.type ?? 'text'} value={v ?? ''} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />
             )}
-            {f.help && !err && <span className="field-help">{f.help}</span>}
+            {chk ? <span className="field-check">{chk}</span> : f.help && !err && <span className="field-help">{f.help}</span>}
             {err && <span className="field-error">{err}</span>}
           </div>
         );

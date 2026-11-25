@@ -5,10 +5,12 @@
 import { db, schema } from './lib/core.js';
 import { syncTenant } from './compliance/sync.js';
 import { runAll as runReminders } from './services/reminders.js';
+import { purgeUnused } from './services/extract.js';
 
 export async function nightly() {
   const ts = await db.select({ id: schema.tenants.id }).from(schema.tenants);
   for (const t of ts) await syncTenant(t.id);
+  await purgeUnused();
 }
 
 /** Runs `fn` every day at hh:mm UTC. */

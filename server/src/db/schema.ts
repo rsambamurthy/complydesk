@@ -403,3 +403,28 @@ export const reminderLog = pgTable('reminder_log', {
   items: integer('items').notNull(),
   sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.day] })]);
+
+/**
+ * Documents read by AI to fill in forms (MCA master data, challans, MGT-7, financials…). The file is kept until it is
+ * attached to the client / filing it filled in, or purged after a few days. `result` is what was read, before review.
+ */
+export const extractions = pgTable('extractions', {
+  id: id(),
+  tenantId: tenantId(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  docType: text('doc_type').notNull(),
+  clientId: text('client_id').references(() => clients.id, { onDelete: 'cascade' }),
+  obligationId: text('obligation_id'),
+  fileName: text('file_name').notNull(),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  storageKey: text('storage_key'),
+  /** READ | FAILED | APPLIED | ATTACHED */
+  status: text('status').notNull(),
+  result: jsonb('result').$type<Record<string, unknown>>(),
+  error: text('error'),
+  model: text('model'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  createdAt: createdAt(),
+}, (t) => [index('extractions_tenant_ix').on(t.tenantId, t.createdAt)]);

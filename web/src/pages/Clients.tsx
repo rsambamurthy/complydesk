@@ -8,10 +8,13 @@ import { Alert, Empty, Spinner } from '../components/ui';
 import { RecordModal } from '../components/RecordForm';
 import { clientFields, formToClient } from '../components/ClientForms';
 import { useSession } from '../lib/session';
+import { ReadDocument, useReading } from '../components/DocumentReader';
 
 export function Clients() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
+  const [reading, setReading] = useState(false);
+  const docs = useReading();
   const { data, error, reload } = useLoad<Client[]>(`/clients?q=${encodeURIComponent(q)}`);
   const meta = useMeta();
   const nav = useNavigate();
@@ -22,13 +25,14 @@ export function Clients() {
         <div><h1>Clients</h1><p className="muted">Companies you look after.</p></div>
         {can('clients.manage') && <div className="head-actions">
           <Link className="btn btn-secondary" to="/clients/import">Import from Excel</Link>
+          {docs?.enabled && <button className="btn btn-secondary" onClick={() => setReading(true)} disabled={!meta}>Add from MCA master data</button>}
           <button className="btn btn-primary" onClick={() => setAdding(true)} disabled={!meta}>Add client</button>
         </div>}
       </div>
       {error && <Alert kind="error">{error}</Alert>}
       <section className="card">
         <div className="toolbar"><input className="search" placeholder="Search by name or CIN" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-        {!data ? <Spinner /> : data.length === 0 ? <Empty>No clients yet. Add one, or import a list from Excel.</Empty> : (
+        {!data ? <Spinner /> : data.length === 0 ? <Empty>No clients yet. Add one, read it from the MCA master data, or import a list from Excel.</Empty> : (
           <div className="table-wrap"><table className="table">
             <thead><tr><th>Company</th><th>Type</th><th>Handled by</th><th className="num">Overdue</th><th className="num">Due in 30 days</th><th>Next due</th></tr></thead>
             <tbody>{data.map((c) => (
@@ -44,6 +48,7 @@ export function Clients() {
           </table></div>
         )}
       </section>
+      {reading && meta && <ReadDocument kinds={['MCA_MASTER', 'INCORPORATION']} meta={meta} title="Add a client from a document" onClose={() => setReading(false)} onDone={(o) => { reload(); nav(`/clients/${o.clientId}`); }} />}
       {adding && meta && (
         <RecordModal title="Add client" fields={clientFields(meta)} saveLabel="Add client"
           initial={{ companyType: 'PRIVATE', smallCompany: false }}

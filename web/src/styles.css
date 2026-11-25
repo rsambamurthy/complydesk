@@ -968,3 +968,15 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .inv-lines .code-input { width: 100px; font-family: var(--mono, ui-monospace, monospace); }
 .algo-steps { margin: 8px 0 12px; padding-inline-start: 20px; font-size: 14px; line-height: 1.5; }
 .algo-steps li { margin-bottom: 6px; }
+
+/* Values read from a document that a person should look at */
+.needs-check input, .needs-check select, .needs-check textarea, input.needs-check, select.needs-check { border-color: #e0a100; background: #fffbeb; }
+.field-check { font-size: 12px; color: #8a5a00; }
+.read-table td { padding: 4px 6px; vertical-align: top; }
+.read-table input, .read-table select { width: 100%; min-width: 0; font-size: 13px; padding: 4px 6px; }
+.read-table tr.off td:not(:first-child) { opacity: .45; }
+.read-table .field-error, .read-table .field-check { display: block; }
+.doc-pick { display: grid; gap: 8px; }
+.doc-pick label { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--border, #e3e6ee); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+.doc-pick label.on { border-color: var(--brand); background: var(--brand-50); }
+.changes td { padding: 6px 8px; } .changes .was { color: #8a8fa3; text-decoration: line-through; }

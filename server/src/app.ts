@@ -14,6 +14,7 @@ import { clientsRouter } from './routes/clients.js';
 import { obligationsRouter } from './routes/obligations.js';
 import { adminRouter } from './routes/admin.js';
 import { importRouter } from './routes/import.js';
+import { extractRouter } from './routes/extract.js';
 
 export function createApp() {
   const app = express();
@@ -35,6 +36,7 @@ export function createApp() {
   app.use('/api/import', requireStaff, requireWritable, importRouter);
   app.use('/api/meetings', requireStaff, requireWritable, meetingsRouter);
   app.use('/api/files', requireStaff, requireWritable, filesRouter);
+  app.use('/api/extract', requireStaff, requireWritable, extractRouter);
   app.use('/api/admin', requireStaff, requireWritable, adminRouter);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'No such API')));
 

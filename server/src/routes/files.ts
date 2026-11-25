@@ -1,4 +1,4 @@
-/** Files attached to a filing or a meeting. Visible to whoever can see that client; added by staff and client approvers. */
+/** Files attached to a client, a filing or a meeting. Visible to whoever can see that client; added by staff and client approvers. */
 import { Router } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'node:crypto';
@@ -8,7 +8,7 @@ import { requirePerm, assertClientVisible } from '../auth/session.js';
 import { storage } from '../lib/storage.js';
 
 export const filesRouter = Router();
-const { attachments: a, obligations, meetings } = schema;
+const { attachments: a, obligations, meetings, clients } = schema;
 const MAX = 15 * 1024 * 1024;
 const TYPES: Record<string, string> = {
   'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg',
@@ -21,6 +21,11 @@ const tid = (req: any) => req.staff.tenant.id as string;
 
 /** The client a filing / meeting belongs to (and that it is in this workspace). */
 async function ownerClient(tenantId: string, entity: string, entityId: string) {
+  if (entity === 'client') {
+    const [c] = await db.select({ id: clients.id }).from(clients).where(and(eq(clients.id, entityId), eq(clients.tenantId, tenantId)));
+    if (!c) throw notFound('Client not found');
+    return c.id;
+  }
   const table = entity === 'obligation' ? obligations : entity === 'meeting' ? meetings : null;
   if (!table) throw new HttpError(400, 'Unknown item');
   const [row] = await db.select({ clientId: table.clientId }).from(table).where(and(eq(table.id, entityId), eq(table.tenantId, tenantId)));

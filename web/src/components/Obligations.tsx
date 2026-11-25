@@ -8,6 +8,7 @@ import { api } from '../lib/api';
 import type { Meta, Obligation, Person } from '../lib/types';
 import { doneWord, fmtDate, fmtDateTime, fyLabel, isMeeting, money, STAGE, today } from '../lib/format';
 import { Attachments } from './Attachments';
+import { ReadDocument, useReading } from './DocumentReader';
 import { useLoad } from '../lib/hooks';
 import { Alert, Modal, Spinner } from './ui';
 import { DueDate, Empty, StatusBadge } from './ui';
@@ -122,6 +123,9 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
   const [assignee, setAssignee] = useState<string | null>(o.assigneeId);
   const [notes, setNotes] = useState(o.notes ?? '');
   const clientUser = !!me?.user.clientIds.length;
+  const docs = useReading();
+  const [challan, setChallan] = useState(false);
+  const [filesKey, setFilesKey] = useState(0);
   if (error) return <Modal title={o.form} onClose={onClose}><Alert kind="error">{error}</Alert></Modal>;
   if (!data) return <Modal title={o.form} onClose={onClose}><Spinner /></Modal>;
   const ob = data.obligation;
@@ -178,6 +182,7 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
           {pending && (
             <div className="card pad stack" style={{ gap: 8, background: 'var(--surface-2, #f6f7fb)' }}>
               <strong className="small">{pending.label}</strong>
+              {pending.needsFiling && docs?.enabled && meta && <span className="small">Have the challan? <a href="#" onClick={(e) => { e.preventDefault(); setChallan(true); }}>Read the SRN and date from it</a></span>}
               {pending.needsFiling && <div className="field-grid">
                 <div className="field"><label htmlFor="srn">SRN</label><input id="srn" className="mono" value={srn} onChange={(e) => setSrn(e.target.value.toUpperCase())} placeholder="F12345678" /></div>
                 <div className="field"><label htmlFor="fo">Filed on</label><input id="fo" type="date" value={filedOn} onChange={(e) => setFiledOn(e.target.value)} /></div>
@@ -199,7 +204,9 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
       )}
 
       <h4 style={{ margin: '14px 0 6px' }}>Documents</h4>
-      <Attachments entity="obligation" entityId={o.id} canAdd={can('compliance.work') || can('compliance.client_approve')} canRemove={can('compliance.work') && !clientUser} />
+      {challan && meta && <ReadDocument kinds={['SRN_CHALLAN']} obligationId={o.id} meta={meta} title="Read the challan"
+        onClose={() => setChallan(false)} onDone={(r) => { if (r.srn) setSrn(r.srn); if (r.filedOn) setFiledOn(r.filedOn); setFilesKey((k) => k + 1); }} />}
+      <Attachments key={filesKey} entity="obligation" entityId={o.id} canAdd={can('compliance.work') || can('compliance.client_approve')} canRemove={can('compliance.work') && !clientUser} />
 
       <h4 style={{ margin: '16px 0 6px' }}>History</h4>
       {data.history.length === 0 ? <p className="muted small">Nothing yet.</p> : (

@@ -12,10 +12,12 @@ import { TabStrip } from '../components/TabStrip';
 import { useSession } from '../lib/session';
 import { ClientUsers } from '../components/ClientUsers';
 import { ClientMeetings } from './Meetings';
+import { Attachments } from '../components/Attachments';
+import { DscReader, ReadDocument, useReading } from '../components/DocumentReader';
 
 interface Detail { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[]; summary: Summary; rules: { code: string; form: string; title: string; applies: boolean }[] }
 
-const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details', 'Client users'] as const;
+const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details', 'Documents', 'Client users'] as const;
 
 export function ClientDetail() {
   const { id } = useParams();
@@ -23,6 +25,10 @@ export function ClientDetail() {
   const meta = useMeta();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Compliance');
   const [editing, setEditing] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [dsc, setDsc] = useState(false);
+  const [docsKey, setDocsKey] = useState(0);
+  const docs = useReading();
   const { can } = useSession();
   if (error) return <div className="page"><Alert kind="error">{error}</Alert></div>;
   if (!data || !meta) return <Spinner />;
@@ -35,7 +41,10 @@ export function ClientDetail() {
           <h1>{c.name}</h1>
           <p className="muted"><span className="mono">{c.cin}</span> · {COMPANY_TYPE[c.companyType]}{c.smallCompany && ' · Small company'}{c.incorporationDate && ` · Incorporated ${fmtDate(c.incorporationDate)}`}</p>
         </div>
-        {can('clients.manage') && <div className="head-actions"><button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit details</button></div>}
+        {can('clients.manage') && <div className="head-actions">
+          {docs?.enabled && <button className="btn btn-secondary" onClick={() => setReading(true)}>Read a document</button>}
+          <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit details</button>
+        </div>}
       </div>
       <div className="tiles" style={{ gridTemplateColumns: 'repeat(4, minmax(0,1fr))' }}>
         <div className="card tile"><span className={`tile-n ${data.summary.overdue ? 'tile-bad' : ''}`}>{data.summary.overdue}</span><span className="tile-l">Overdue</span></div>
@@ -49,7 +58,7 @@ export function ClientDetail() {
           {tab === 'Compliance' && <ComplianceTab d={data} meta={meta} reload={reload} />}
           {tab === 'Directors & KMP' && (
             <ChildList title="Directors & KMP" path="people" clientId={c.id} rows={data.people} fields={personFields(meta)} reload={reload}
-              initial={{ designation: 'DIRECTOR' }}
+              initial={{ designation: 'DIRECTOR' }} extra={can('clients.manage') && active.length > 0 && <button className="btn btn-sm btn-secondary" onClick={() => setDsc(true)}>Read DSC files</button>}
               cols={[
                 { label: 'Name', cell: (p) => <><strong>{p.name}</strong>{p.ceasedOn && <span className="badge sm">Ceased {fmtDate(p.ceasedOn)}</span>}<span className="muted small block">{p.email}</span></> },
                 { label: 'Designation', cell: (p) => DESIGNATION[p.designation] ?? p.designation },
@@ -69,6 +78,10 @@ export function ClientDetail() {
               ]} />
           )}
           {tab === 'Meetings' && <ClientMeetings clientId={c.id} />}
+          {tab === 'Documents' && <div className="pad stack" style={{ gap: 8 }}>
+            <p className="muted small" style={{ margin: 0 }}>Company records: master data, incorporation papers, annual returns, financial statements, auditor letters. Documents read into this client are kept here too.</p>
+            <Attachments key={docsKey} entity="client" entityId={c.id} canAdd={can('compliance.work')} canRemove={can('clients.manage')} />
+          </div>}
           {tab === 'Client users' && <ClientUsers clientId={c.id} clientName={c.name} />}
           {tab === 'Details' && (
             <dl className="kv pad">
@@ -82,6 +95,9 @@ export function ClientDetail() {
           )}
         </div>
       </section>
+      {reading && <ReadDocument kinds={['MGT7', 'FINANCIALS', 'AUDITOR', 'MCA_MASTER', 'INCORPORATION']} clientId={c.id} existing={data} meta={meta}
+        onClose={() => setReading(false)} onDone={() => { reload(); setDocsKey((k) => k + 1); }} />}
+      {dsc && <DscReader clientId={c.id} people={data.people} onClose={() => setDsc(false)} onDone={reload} />}
       {editing && <RecordModal title="Edit client" fields={clientFields(meta)} initial={clientToForm(c)}
         onSave={async (v) => { await api(`/clients/${c.id}`, { method: 'PATCH', body: formToClient(v) }); reload(); }} onClose={() => setEditing(false)} />}
     </div>
@@ -146,8 +162,8 @@ function Shareholders({ d, reload }: { d: Detail; reload: () => void }) {
 }
 
 /** A client's list of directors / shareholders / auditors with add and edit (one component for all three). */
-function ChildList<T extends { id: string }>({ title, path, clientId, rows, cols, fields, initial, reload }: {
-  title: string; path: string; clientId: string; rows: T[]; fields: FieldDef[]; initial: Record<string, any>; reload: () => void;
+function ChildList<T extends { id: string }>({ title, path, clientId, rows, cols, fields, initial, reload, extra }: {
+  title: string; path: string; clientId: string; rows: T[]; fields: FieldDef[]; initial: Record<string, any>; reload: () => void; extra?: ReactNode;
   cols: { label: string; cell: (r: T) => ReactNode; num?: boolean }[];
 }) {
   const [open, setOpen] = useState<T | 'new'>();
@@ -155,7 +171,7 @@ function ChildList<T extends { id: string }>({ title, path, clientId, rows, cols
   const clean = (v: Record<string, any>) => Object.fromEntries(Object.entries(v).filter(([k]) => !['id', 'tenantId', 'clientId', 'createdAt'].includes(k)));
   return (
     <>
-      <div className="toolbar"><h3>{title}</h3><span className="grow" />{can('clients.manage') && <button className="btn btn-sm btn-primary" onClick={() => setOpen('new')}>Add</button>}</div>
+      <div className="toolbar"><h3>{title}</h3><span className="grow" />{extra}{can('clients.manage') && <button className="btn btn-sm btn-primary" onClick={() => setOpen('new')}>Add</button>}</div>
       {rows.length === 0 ? <Empty>None added yet.</Empty> : (
         <div className="table-wrap"><table className="table compact">
           <thead><tr>{cols.map((c) => <th key={c.label} className={c.num ? 'num' : ''}>{c.label}</th>)}</tr></thead>
