@@ -4,8 +4,10 @@
  */
 import nodemailer from 'nodemailer';
 
+// Values pasted into a dashboard often carry stray spaces or line breaks; app passwords are shown in groups ("abcd efgh ijkl").
+const clean = (v?: string) => v?.trim() || undefined;
 const cfg = () => ({
-  host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 465), user: process.env.SMTP_USER, pass: process.env.SMTP_PASS,
+  host: clean(process.env.SMTP_HOST), port: Number(clean(process.env.SMTP_PORT) ?? 465), user: clean(process.env.SMTP_USER), pass: process.env.SMTP_PASS?.replace(/\s+/g, '') || undefined,
   from: process.env.MAIL_FROM ?? process.env.SMTP_USER ?? 'ComplyDesk <no-reply@integratatech.ai>',
 });
 let transport: nodemailer.Transporter | null = null;
@@ -28,4 +30,17 @@ export async function sendMail(to: string, subject: string, text: string) {
 export function appUrl(path: string) {
   const base = process.env.APP_URL ?? (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'http://localhost:5173');
   return base.replace(/\/$/, '') + path;
+}
+
+/** What the app is using (password never shown) — for the platform console's test email. */
+export function mailSummary() {
+  const c = cfg();
+  return { host: c.host ?? null, port: c.port, user: c.user ?? null, passwordLength: c.pass?.length ?? 0, from: c.from };
+}
+
+/** Signs in to the mail server without sending, to check the settings. */
+export async function verifyMail() {
+  const c = cfg();
+  const t = nodemailer.createTransport({ host: c.host, port: c.port, secure: c.port === 465, auth: { user: c.user, pass: c.pass } });
+  await t.verify();
 }

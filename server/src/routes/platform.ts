@@ -4,7 +4,7 @@ import { h } from '../lib/core.js';
 import { requirePlatformAdmin } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
 import { applyTenantAction, getSettings, platformEventsList, settingsInput, tenantAction, tenantList, updateSettings } from '../services/platform.js';
-import { mailConfigured, sendMail } from '../lib/mailer.js';
+import { mailConfigured, sendMail, mailSummary, verifyMail } from '../lib/mailer.js';
 import { HttpError } from '../lib/core.js';
 import { platformRules, savePlatformRule, createPlatformRule, resetPlatformRule, ruleHistoryFor, ruleInput, newRuleInput } from '../services/rules.js';
 
@@ -27,7 +27,10 @@ platformRouter.delete('/rules/:code', h(async (req, res) => { await resetPlatfor
 /** Sends a test email to the signed-in platform admin and reports the mail server's exact answer. */
 platformRouter.post('/test-email', h(async (req, res) => {
   if (!mailConfigured()) throw new HttpError(400, 'Email isn’t set up: SMTP_HOST, SMTP_USER and SMTP_PASS are needed.');
+  const m = mailSummary();
+  const using = `Using ${m.host}:${m.port}, user “${m.user}”, password of ${m.passwordLength} characters.`;
+  try { await verifyMail(); } catch (e: any) { throw new HttpError(502, `Sign-in to the mail server failed: ${e.response ?? e.message}. ${using}`); }
   try { await sendMail(req.staff!.user.email, 'ComplyDesk test email', 'Email from ComplyDesk is working.\n\n— Integrata'); }
-  catch (e: any) { throw new HttpError(502, `The mail server refused: ${e.response ?? e.message}`); }
+  catch (e: any) { throw new HttpError(502, `Signed in, but sending failed: ${e.response ?? e.message}. ${using}`); }
   res.json({ ok: true, to: req.staff!.user.email });
 }));
