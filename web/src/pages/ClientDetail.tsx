@@ -25,7 +25,7 @@ export function ClientDetail() {
   const meta = useMeta();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Compliance');
   const [editing, setEditing] = useState(false);
-  const [reading, setReading] = useState(false);
+  const [reading, setReading] = useState<false | 'any' | 'papers'>(false);
   const [dsc, setDsc] = useState(false);
   const [docsKey, setDocsKey] = useState(0);
   const docs = useReading();
@@ -42,7 +42,7 @@ export function ClientDetail() {
           <p className="muted"><span className="mono">{c.cin}</span> · {COMPANY_TYPE[c.companyType]}{c.smallCompany && ' · Small company'}{c.incorporationDate && ` · Incorporated ${fmtDate(c.incorporationDate)}`}</p>
         </div>
         {can('clients.manage') && <div className="head-actions">
-          {docs?.enabled && <button className="btn btn-secondary" onClick={() => setReading(true)}>Read a document</button>}
+          {docs?.enabled && <button className="btn btn-secondary" onClick={() => setReading('any')}>Read a document</button>}
           <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit details</button>
         </div>}
       </div>
@@ -55,7 +55,7 @@ export function ClientDetail() {
       <section className="card">
         <TabStrip>{TABS.filter((t) => t !== 'Client users' || can('users.manage')).map((t) => <button key={t} role="tab" className={tab === t ? 'active' : ''} aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}</TabStrip>
         <div className="tab-panel">
-          {tab === 'Compliance' && <ComplianceTab d={data} meta={meta} reload={reload} />}
+          {tab === 'Compliance' && <ComplianceTab key={docsKey} d={data} meta={meta} reload={reload} onPapers={docs?.enabled ? () => setReading('papers') : undefined} />}
           {tab === 'Directors & KMP' && (
             <ChildList title="Directors & KMP" path="people" clientId={c.id} rows={data.people} fields={personFields(meta)} reload={reload}
               initial={{ designation: 'DIRECTOR' }} extra={can('clients.manage') && active.length > 0 && <button className="btn btn-sm btn-secondary" onClick={() => setDsc(true)}>Read DSC files</button>}
@@ -95,7 +95,7 @@ export function ClientDetail() {
           )}
         </div>
       </section>
-      {reading && <ReadDocument kinds={['MGT7', 'FINANCIALS', 'AUDITOR', 'MCA_MASTER', 'INCORPORATION']} clientId={c.id} existing={data} meta={meta}
+      {reading && <ReadDocument kinds={reading === 'papers' ? ['BOARD_PAPERS'] : ['BOARD_PAPERS', 'MGT7', 'FINANCIALS', 'AUDITOR', 'MCA_MASTER', 'INCORPORATION']} title={reading === 'papers' ? 'Find filings in board papers' : undefined} clientId={c.id} existing={data} meta={meta}
         onClose={() => setReading(false)} onDone={() => { reload(); setDocsKey((k) => k + 1); }} />}
       {dsc && <DscReader clientId={c.id} people={data.people} onClose={() => setDsc(false)} onDone={reload} />}
       {editing && <RecordModal title="Edit client" fields={clientFields(meta)} initial={clientToForm(c)}
@@ -110,7 +110,7 @@ function DscExpiry({ date }: { date: string | null }) {
   return <span className={d < 0 ? 'overdue' : d <= 30 ? 'warn-text' : ''}>{fmtDate(date)}{d < 0 ? ' (expired)' : d <= 30 ? ` (${d} days)` : ''}</span>;
 }
 
-function ComplianceTab({ d, meta, reload }: { d: Detail; meta: Meta; reload: () => void }) {
+function ComplianceTab({ d, meta, reload, onPapers }: { d: Detail; meta: Meta; reload: () => void; onPapers?: () => void }) {
   const [view, setView] = useState<'open' | 'done' | 'all'>('open');
   const [adding, setAdding] = useState(false);
   const [year, setYear] = useState<number>();
@@ -129,6 +129,7 @@ function ComplianceTab({ d, meta, reload }: { d: Detail; meta: Meta; reload: () 
           const y = d.years.find((x) => x.fy === fy);
           return <button key={fy} className="btn btn-sm btn-secondary" onClick={() => setYear(fy)} title="AGM and first board meeting dates">{fyLabel(fy)}: AGM {y?.agmDate ? fmtDate(y.agmDate) : 'not recorded'}</button>;
         })}
+        {can('compliance.work') && onPapers && <button className="btn btn-sm btn-secondary" onClick={onPapers} title="Read minutes / resolutions and put the filings they need on the calendar">Find filings in board papers</button>}
         {can('compliance.work') && <button className="btn btn-sm btn-primary" onClick={() => setAdding(true)}>Add event-based filing</button>}
       </div>
       {list.data ? <ObligationTable rows={list.data} showClient={false} meta={meta} onChanged={refresh} empty={view === 'open' ? 'Nothing to do right now.' : 'Nothing here.'} /> : <Spinner />}

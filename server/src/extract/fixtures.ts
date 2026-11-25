@@ -4,6 +4,23 @@ import type { DocType } from './doctypes.js';
 const KAVERI = 'U72900TN2015PTC101234';
 
 export const FIXTURES: Record<DocType, Record<string, any>> = {
+  BOARD_PAPERS: {
+    documentKind: 'Minutes of board meeting', matchesExpected: true, unclear: ['events.3.eventDate'],
+    data: {
+      meeting: { kind: 'BOARD', date: '2026-11-18', cin: KAVERI },
+      events: [
+        { ruleCode: 'DIR12', eventDate: '2026-11-18', summary: 'Appointment of Karan Mehta as Additional Director', personName: 'Karan Mehta', personDin: '08123456', personRole: 'Additional Director', change: 'APPOINTED', quote: 'Mr. Karan Mehta (DIN 08123456) be and is hereby appointed as an Additional Director' },
+        { ruleCode: 'DIR12', eventDate: '2026-11-15', summary: 'Resignation of Suresh Iyer as Director', personName: 'Suresh Iyer', personDin: '02345678', personRole: 'Director', change: 'RESIGNED', quote: 'noted the resignation of Mr. Suresh Iyer with effect from 15th November 2026' },
+        { ruleCode: 'PAS3', eventDate: '2026-11-18', summary: 'Allotment of 5,000 equity shares on rights basis', personName: null, personDin: null, personRole: null, change: null, quote: 'allotted 5,000 equity shares of ₹10 each on rights basis' },
+        { ruleCode: 'CHG1', eventDate: '2026-11-20', summary: 'Hypothecation of book debts to HDFC Bank for ₹50 lakh working capital', personName: null, personDin: null, personRole: null, change: null, quote: 'hypothecation of book debts in favour of HDFC Bank Ltd' },
+        { ruleCode: 'INC22', eventDate: '2026-12-01', summary: 'Registered office shifted to Guindy, Chennai (within the city)', personName: null, personDin: null, personRole: null, change: null, quote: 'shifted to Plot 14, Industrial Estate, Guindy with effect from 1st December 2026' },
+      ],
+      notFiled: [
+        { summary: 'Approval to borrow up to ₹50 lakh from HDFC Bank', reason: 'Board resolution under s.179(3) — private companies are exempt from MGT-14' },
+        { summary: 'Noting of the compliance status report', reason: 'Information item' },
+      ],
+    },
+  },
   MCA_MASTER: {
     documentKind: 'MCA company master data', matchesExpected: true, unclear: ['directors.1.appointedOn'],
     data: {

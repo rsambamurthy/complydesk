@@ -6,7 +6,11 @@ import { CIN_RE, DIN_RE, PAN_RE, DESIGNATIONS, clientInput, personInput, shareho
 import type { DocType } from './doctypes.js';
 
 type Any = Record<string, any>;
-export interface Context { clientCin?: string | null; obligationForm?: string | null }
+export interface Context {
+  clientCin?: string | null; obligationForm?: string | null;
+  /** For board papers: the workspace's event filings, the client's people and what's already on its calendar. */
+  eventRules?: EventRuleLite[]; people?: PersonLite[]; existing?: ExistingOb[];
+}
 export interface Read { values: Any; /** field path → what to check */ check: Record<string, string>; warnings: string[] }
 
 /** Small company (s.2(85)) limits since 1 Dec 2025 (G.S.R. 880(E)): paid-up ≤ ₹10 crore and turnover ≤ ₹100 crore. */
@@ -153,6 +157,12 @@ export function normalise(docType: DocType, raw: Any, ctx: Context = {}): Read {
         check, warnings,
       };
     }
+    case 'BOARD_PAPERS': {
+      const v = proposeEvents(raw, ctx.eventRules ?? [], ctx.people ?? [], ctx.existing ?? [], check, warnings);
+      cinCheck(v.meeting.cin, ctx, warnings);
+      if (!v.events.length) warnings.push('No events needing a filing were found in this document.');
+      return { values: v, check, warnings };
+    }
     case 'AUDITOR': {
       const auditor = { firmName: clean(d.firmName), frn: upper(d.frn), appointedOn: toDate(d.appointedOn), termFromFy: fyOf(d.termFromFy), termToFy: fyOf(d.termToFy), current: true };
       if (auditor.termFromFy && !auditor.termToFy) auditor.termToFy = auditor.termFromFy + 4, check['auditor.termToFy'] = 'Assumed a 5-year term — check it';
@@ -170,4 +180,59 @@ export function nameMatch(a: string, b: string) {
   if (!A.size || !B.size) return 0;
   let both = 0; for (const w of A) if (B.has(w)) both++;
   return both / Math.max(A.size, B.size);
+}
+
+// ---- Board papers → filings --------------------------------------------------------------------------------
+
+export interface EventRuleLite { code: string; form: string; title: string; days: number; event?: string | null }
+export interface PersonLite { id: string; name: string; din: string | null; designation: string; ceasedOn: string | null }
+export interface ExistingOb { ruleCode: string; eventDate: string | null; personId: string | null }
+export interface ProposedEvent {
+  ruleCode: string; form: string; title: string; days: number; eventDate: string | null; dueDate: string | null; summary: string; quote: string | null;
+  person: { name: string; din: string | null; designation: string } | null;
+  /** What to do with the director register: add the new person, mark them ceased, or nothing. */
+  personAction: 'ADD' | 'CEASE' | null; personId: string | null; onCalendar: boolean;
+}
+
+const plusDays = (d: string, n: number) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+
+/** Pure: events read from board papers → filings to propose, matched to the client's people and calendar. */
+export function proposeEvents(raw: Any, rules: EventRuleLite[], people: PersonLite[], existing: ExistingOb[], check: Record<string, string>, warnings: string[]) {
+  const d: Any = raw.data ?? {};
+  const meetingDate = toDate(d.meeting?.date);
+  const list: Any[] = Array.isArray(d.events) ? d.events : [];
+  // Keep only events matched to a filing; move "check this" notes from the model's numbering to ours.
+  const kept: { e: Any; rule: EventRuleLite; from: number }[] = [];
+  list.forEach((e, i) => {
+    const rule = rules.find((r) => r.code === String(e?.ruleCode ?? '').toUpperCase().replace(/[^A-Z0-9_]/g, ''));
+    if (rule) kept.push({ e, rule, from: i }); else if (e?.summary) warnings.push(`Not matched to a filing: “${clean(e.summary)}”.`);
+  });
+  const moved: Record<string, string> = {};
+  for (const [k, v] of Object.entries(check)) {
+    const m = k.match(/^events\.(\d+)\.(.+)$/);
+    if (!m) continue;
+    delete check[k];
+    const to = kept.findIndex((x) => x.from === Number(m[1]));
+    if (to >= 0) moved[`events.${to}.${m[2]}`] = v;
+  }
+  Object.assign(check, moved);
+  const events: ProposedEvent[] = kept.map(({ e, rule }, n) => {
+    const eventDate = toDate(e.eventDate) ?? meetingDate;
+    if (!toDate(e.eventDate)) check[`events.${n}.eventDate`] ??= meetingDate ? 'Date not stated — meeting date used' : 'Enter the date';
+    const din = upper(e.personDin)?.replace(/^0*(?=\d{8}$)/, '') ?? null;
+    const name = clean(e.personName);
+    const who = name || din ? people.find((p) => (din && p.din === din) || (!!name && nameMatch(p.name, name) >= 0.99)) ?? null : null;
+    const change = String(e.change ?? '').toUpperCase();
+    const personAction = !name ? null : change === 'APPOINTED' && !who ? 'ADD' : change === 'RESIGNED' && who && !who.ceasedOn ? 'CEASE' : null;
+    if (name && !who && change !== 'APPOINTED') check[`events.${n}.person`] = `${name} isn’t on the Directors list — check`;
+    const personId = who?.id ?? null;
+    return {
+      ruleCode: rule.code, form: rule.form, title: rule.title, days: rule.days, eventDate, dueDate: eventDate ? plusDays(eventDate, rule.days) : null,
+      summary: clean(e.summary) ?? rule.title, quote: clean(e.quote),
+      person: name ? { name, din, designation: toDesignation(e.personRole) } : null, personAction, personId,
+      onCalendar: !!eventDate && existing.some((x) => x.ruleCode === rule.code && x.eventDate === eventDate && (!personId || !x.personId || x.personId === personId)),
+    };
+  });
+  const notFiled = (Array.isArray(d.notFiled) ? d.notFiled : []).filter((x: Any) => clean(x?.summary)).map((x: Any) => ({ summary: clean(x.summary)!, reason: clean(x.reason) }));
+  return { meeting: { kind: clean(d.meeting?.kind)?.toUpperCase() ?? null, date: meetingDate, cin: upper(d.meeting?.cin) }, events, notFiled };
 }

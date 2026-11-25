@@ -34,7 +34,7 @@ const wrap = (docType: DocType) => ({
   required: ['documentKind', 'matchesExpected', 'unclear', 'data'],
 });
 
-async function claude(docType: DocType, file: Buffer, mime: string): Promise<ReadOut> {
+async function claude(docType: DocType, file: Buffer, mime: string, extraGuide = ''): Promise<ReadOut> {
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 120_000, maxRetries: 2 });
   const data = file.toString('base64');
@@ -46,16 +46,16 @@ async function claude(docType: DocType, file: Buffer, mime: string): Promise<Rea
     model, max_tokens: 8000, system: SYSTEM,
     tools: [{ name: 'record_document', description: 'Record the values read from the document.', input_schema: wrap(docType) as any }],
     tool_choice: { type: 'tool', name: 'record_document' },
-    messages: [{ role: 'user', content: [source, { type: 'text', text: `${DOC_TYPES[docType].guide} Read it and call record_document.` }] }],
+    messages: [{ role: 'user', content: [source, { type: 'text', text: `${DOC_TYPES[docType].guide}${extraGuide ? `\n\n${extraGuide}` : ''}\n\nRead it and call record_document.` }] }],
   });
   const tool = msg.content.find((c: any) => c.type === 'tool_use') as any;
   if (!tool) throw new Error('The document could not be read');
   return { raw: tool.input, model, inputTokens: msg.usage?.input_tokens, outputTokens: msg.usage?.output_tokens };
 }
 
-export async function readDocument(docType: DocType, file: Buffer, mime: string): Promise<ReadOut> {
+export async function readDocument(docType: DocType, file: Buffer, mime: string, extraGuide = ''): Promise<ReadOut> {
   if (readerName() === 'mock') return { raw: structuredClone(FIXTURES[docType]), model: 'mock' };
-  return claude(docType, file, mime);
+  return claude(docType, file, mime, extraGuide);
 }
 
 /** A DSC certificate file (.cer / .crt / .pem / DER): holder name and expiry, read directly. */

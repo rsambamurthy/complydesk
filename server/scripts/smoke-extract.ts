@@ -26,7 +26,7 @@ const admin = await login('admin@demo.in');
 const exec = await login('karthik@demo.in');
 
 const types = await admin.call('/extract/types');
-ok(types.enabled && types.types.length === 6, 'six document kinds, reading switched on');
+ok(types.enabled && types.types.length === 7, 'seven document kinds, reading switched on');
 
 // 1. New client from MCA master data
 await admin.call('/extract', { body: form({ docType: 'MCA_MASTER' }, Buffer.from('hello'), 'x.txt', 'text/plain'), expect: 400 });
@@ -98,4 +98,38 @@ await admin.call('/extract/dsc/apply', { body: { clientId: kaveri.id, updates: [
 ok((await admin.call(`/clients/${kaveri.id}`)).people.find((p: any) => p.id === anita.id).dscExpiry === '2028-11-24', 'DSC expiry updated');
 await admin.call('/extract/dsc/apply', { body: { clientId: marina.id, updates: [{ personId: anita.id, dscExpiry: '2028-01-01' }] }, expect: 400 });
 ok(true, 'can’t update another client’s director');
+
+// 7. Board papers → filings (Marina: no Karan Mehta / Suresh Iyer — use a fresh client view of Kaveri before MGT-7? Kaveri now has Karan Mehta)
+await admin.call('/extract', { body: form({ docType: 'BOARD_PAPERS' }), expect: 400 });
+ok(true, 'board papers need a client');
+const before7 = await admin.call(`/clients/${kaveri.id}`);
+const bp = await exec.call('/extract', { body: form({ docType: 'BOARD_PAPERS', clientId: kaveri.id }, pdf, 'Board minutes 18 Nov 2026.pdf') });
+const ev = bp.values.events;
+ok(ev.length === 5 && bp.values.notFiled.length === 2, 'five filings found, two decisions needing none');
+ok(ev[0].personAction === null && ev[0].personId, 'Karan Mehta already on file (added from MGT-7) — no duplicate person');
+ok(ev[1].personAction === 'CEASE', 'Suresh Iyer’s resignation will mark him ceased');
+const tick = ev.filter((e: any) => !e.onCalendar);
+const bad7 = await exec.call(`/extract/${bp.id}/apply`, { body: { clientId: kaveri.id, events: tick.map((e: any, i: number) => (i === 2 ? { ...e, eventDate: '' } : e)) }, expect: 400 });
+ok(bad7.details['events.2.eventDate'] && (await admin.call(`/clients/${kaveri.id}`)).people.length === before7.people.length, 'a missing date stops the save — nothing half-saved');
+const a7 = await exec.call(`/extract/${bp.id}/apply`, { body: { clientId: kaveri.id, events: tick } });
+ok(a7.added === 5 && a7.peopleCeased === 1, 'five event filings on the calendar; one director marked ceased');
+const cal = await admin.call(`/obligations?clientId=${kaveri.id}&bucket=all`);
+const pas3 = cal.find((o: any) => o.form === 'PAS-3' && o.eventDate === '2026-11-18');
+ok(pas3 && pas3.dueDate === '2026-12-18', 'PAS-3 due 30 days after the allotment');
+ok(cal.some((o: any) => o.form === 'DIR-12' && o.personName === 'Suresh Iyer'), 'DIR-12 linked to Suresh Iyer');
+ok((await admin.call(`/clients/${kaveri.id}`)).people.find((p: any) => p.name === 'Suresh Iyer').ceasedOn === '2026-11-15', 'Suresh Iyer ceased 15 Nov 2026');
+const again = await exec.call('/extract', { body: form({ docType: 'BOARD_PAPERS', clientId: kaveri.id }) });
+ok(again.values.events.every((e: any) => e.onCalendar), 'reading the same minutes again: everything already on the calendar');
+ok((await admin.call(`/files?entity=client&entityId=${kaveri.id}`)).some((f: any) => f.fileName === 'Board minutes 18 Nov 2026.pdf'), 'minutes kept in the client’s documents');
+
+// New person from board papers (Nimbus: Karan Mehta not a director there)
+const nimbus = (await admin.call('/clients?q=Nimbus'))[0];
+const bp2 = await exec.call('/extract', { body: form({ docType: 'BOARD_PAPERS', clientId: nimbus.id }) });
+ok(bp2.warnings.some((w: string) => w.includes('not this client')), 'minutes of another company: warned');
+const add = bp2.values.events[0];
+ok(add.personAction === 'ADD', 'appointment of someone new: offered to add them');
+const a8 = await exec.call(`/extract/${bp2.id}/apply`, { body: { clientId: nimbus.id, events: [add] } });
+const n = await admin.call(`/clients/${nimbus.id}`);
+ok(a8.peopleAdded === 1 && n.people.some((p: any) => p.din === '08123456' && p.appointedOn === '2026-11-18'), 'new director added with appointment date');
+ok((await admin.call(`/obligations?clientId=${nimbus.id}&bucket=all`)).some((o: any) => o.form === 'DIR-12' && o.personName === 'Karan Mehta'), 'DIR-12 linked to the new director');
 console.log('\nAll document-reading checks passed.');

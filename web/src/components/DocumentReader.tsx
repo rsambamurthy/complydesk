@@ -7,13 +7,13 @@ import { useState, type ReactNode } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useLoad } from '../lib/hooks';
 import type { Auditor, Client, Meta, Person, Shareholder, Year } from '../lib/types';
-import { DESIGNATION, fmtDate, fyLabel, money, num } from '../lib/format';
+import { DESIGNATION, addDays, fmtDate, fyLabel, money, num } from '../lib/format';
 import { Alert, Modal, Spinner } from './ui';
 import { Fields, useRecordForm } from './RecordForm';
 import { auditorFields, clientFields, clientToForm, formToClient } from './ClientForms';
 import { DropZone } from './DropZone';
 
-export type DocKind = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR';
+export type DocKind = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR' | 'BOARD_PAPERS';
 interface Types { enabled: boolean; types: { key: DocKind; label: string; hint: string }[] }
 interface Read { id: string; docType: DocKind; fileName: string; values: any; check: Record<string, string>; warnings: string[] }
 export interface Existing { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[] }
@@ -61,6 +61,7 @@ export function ReadDocument({ kinds, clientId, obligationId, existing, meta, ti
           <p className="muted small" style={{ margin: 0 }}>Read from <strong>{read.fileName}</strong>. Values to check are <span className="field-check" style={{ background: '#fffbeb', border: '1px solid #e0a100', borderRadius: 4, padding: '0 4px' }}>highlighted</span>.</p>
           {read.warnings.map((w) => <Alert key={w} kind="warning">{w}</Alert>)}
           {(read.docType === 'MCA_MASTER' || read.docType === 'INCORPORATION') && <CompanyReview read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
+          {read.docType === 'BOARD_PAPERS' && existing && <BoardPapersReview read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'MGT7' && existing && <Mgt7Review read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'FINANCIALS' && existing && <FinancialsReview read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'AUDITOR' && existing && <AuditorReview read={read} existing={existing} onDone={done} onCancel={onClose} />}
@@ -285,6 +286,70 @@ function ChallanReview({ read, obligationId, onDone, onCancel }: { read: Read; o
       <p className="small" style={{ margin: 0 }}>{v.form && <>Form <strong>{v.form}</strong> · </>}{v.companyName && <>{v.companyName} · </>}{v.amount && <>fees {money(v.amount)}</>}{v.approved && <> · <strong>approved</strong>{v.approvedOn && ` on ${fmtDate(v.approvedOn)}`}</>}</p>
       <Actions busy={s.busy} error={s.error} label="Use these details" onCancel={onCancel}
         onSave={() => s.save(async () => { await api(`/extract/${read.id}/attach`, { body: { obligationId } }); return { srn, filedOn, approved: v.approved, approvedOn: v.approvedOn }; })} />
+    </>
+  );
+}
+
+// ---- Board papers → event filings ------------------------------------------------------------------------
+
+interface Proposed {
+  ruleCode: string; form: string; title: string; days: number; eventDate: string | null; dueDate: string | null; summary: string; quote: string | null;
+  person: { name: string; din: string | null; designation: string } | null; personAction: 'ADD' | 'CEASE' | null; personId: string | null; onCalendar: boolean;
+}
+const MEETING_KIND: Record<string, string> = { BOARD: 'Board meeting', AGM: 'AGM', EGM: 'EGM', CIRCULAR: 'Circular resolution' };
+
+function BoardPapersReview({ read, existing, meta, onDone, onCancel }: { read: Read; existing: Existing; meta: Meta; onDone: (o: any) => void; onCancel: () => void }) {
+  const v = read.values as { meeting: { kind: string | null; date: string | null }; events: Proposed[]; notFiled: { summary: string; reason: string | null }[] };
+  const [rows, setRows] = useState(v.events.map((e) => ({ ...e, _on: !e.onCalendar, _person: !!e.personAction })));
+  const s = useSave(onDone);
+  const set = (i: number, patch: Record<string, any>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const name = (id: string | null) => existing.people.find((p) => p.id === id)?.name;
+  let sent = -1;
+  const ticked = rows.filter((r) => r._on);
+  return (
+    <>
+      {v.meeting.date && <p className="small" style={{ margin: 0 }}><strong>{MEETING_KIND[v.meeting.kind ?? ''] ?? 'Meeting'}</strong> of {fmtDate(v.meeting.date)} · {v.events.length} event{v.events.length === 1 ? '' : 's'} needing a filing</p>}
+      {rows.length > 0 && <div className="table-wrap"><table className="table compact read-table">
+        <thead><tr><th style={{ width: 28 }} /><th style={{ width: 150 }}>Filing</th><th>What happened</th><th style={{ width: 160 }}>Event date</th><th style={{ width: 110 }}>Due</th></tr></thead>
+        <tbody>{rows.map((r, i) => {
+          if (r._on) sent++;
+          const j = sent;
+          const e = (k: string) => (r._on ? s.errors[`events.${j}.${k}`] : undefined);
+          const chk = read.check[`events.${i}.eventDate`];
+          const personErr = Object.entries(s.errors).filter(([k]) => r._on && k.startsWith(`events.${j}.person`)).map(([, x]) => x)[0];
+          return (
+            <tr key={i} className={r._on ? '' : 'off'}>
+              <td><input type="checkbox" checked={r._on} onChange={(ev) => set(i, { _on: ev.target.checked })} aria-label={`Add ${r.form}`} /></td>
+              <td><strong>{r.form}</strong><span className="muted small block">{r.title}</span>{r.onCalendar && <span className="badge sm">Already on the calendar</span>}</td>
+              <td>
+                <strong className="small">{r.summary}</strong>
+                {r.quote && <span className="muted small block" style={{ fontStyle: 'italic' }}>“{r.quote}”</span>}
+                {r.personAction === 'ADD' && r.person && <label className="small" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+                  <input type="checkbox" style={{ width: 'auto' }} checked={r._person} onChange={(ev) => set(i, { _person: ev.target.checked })} />
+                  Add <strong>{r.person.name}</strong> as
+                  <select style={{ width: 'auto' }} value={r.person.designation} onChange={(ev) => set(i, { person: { ...r.person!, designation: ev.target.value } })}>{meta.designations.map((d) => <option key={d} value={d}>{DESIGNATION[d] ?? d}</option>)}</select>
+                  DIN <input style={{ width: 110 }} className={read.check[`events.${i}.person`] ? 'needs-check' : ''} value={r.person.din ?? ''} onChange={(ev) => set(i, { person: { ...r.person!, din: ev.target.value } })} />
+                </label>}
+                {r.personAction === 'CEASE' && <label className="small" style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 }}>
+                  <input type="checkbox" style={{ width: 'auto' }} checked={r._person} onChange={(ev) => set(i, { _person: ev.target.checked })} />
+                  Mark <strong>{name(r.personId)}</strong> as ceased on {fmtDate(r.eventDate)}
+                </label>}
+                {!r.personAction && r.personId && <span className="muted small block">Linked to {name(r.personId)}</span>}
+                {read.check[`events.${i}.person`] && r.personAction !== 'ADD' && <span className="field-check">{read.check[`events.${i}.person`]}</span>}
+                {personErr && <span className="field-error">{personErr}</span>}
+              </td>
+              <td className={e('eventDate') ? 'has-error' : ''}><input type="date" className={chk ? 'needs-check' : ''} value={r.eventDate ?? ''} onChange={(ev) => set(i, { eventDate: ev.target.value || null })} />
+                {chk && !e('eventDate') && <span className="field-check">{chk}</span>}{e('eventDate') && <span className="field-error">{e('eventDate')}</span>}</td>
+              <td className="small">{r.eventDate ? <>{fmtDate(addDays(r.eventDate, r.days))}<span className="muted block">{r.days} days</span></> : '—'}</td>
+            </tr>
+          );
+        })}</tbody>
+      </table></div>}
+      {v.notFiled.length > 0 && <div className="small"><strong>No filing needed</strong>
+        <ul style={{ margin: '4px 0 0', paddingInlineStart: 18 }}>{v.notFiled.map((x, i) => <li key={i}>{x.summary}{x.reason && <span className="muted"> — {x.reason}</span>}</li>)}</ul></div>}
+      <p className="muted small" style={{ margin: 0 }}>Each ticked filing goes on the calendar with its due date and starts at “To do”. The minutes are kept in the client’s Documents.</p>
+      <Actions busy={s.busy} error={s.error} label={ticked.length ? `Add ${ticked.length} filing${ticked.length === 1 ? '' : 's'} to the calendar` : 'Nothing ticked'} onCancel={onCancel}
+        onSave={() => s.save(() => api(`/extract/${read.id}/apply`, { body: { clientId: existing.client.id, events: ticked.map(({ _on, _person, ...r }) => ({ ...r, personAction: _person ? r.personAction : null })) } }))} />
     </>
   );
 }

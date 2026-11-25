@@ -88,3 +88,54 @@ describe('DSC certificate', () => {
   });
   it('refuses other files', () => expect(() => readCertificate(Buffer.from('hello'))).toThrow(/certificate/));
 });
+
+describe('board papers → filings', () => {
+  const rules = [
+    { code: 'DIR12', form: 'DIR-12', title: 'Change in directors / KMP', days: 30 },
+    { code: 'PAS3', form: 'PAS-3', title: 'Return of allotment', days: 30 },
+    { code: 'CHG1', form: 'CHG-1', title: 'Charge', days: 30 },
+    { code: 'INC22', form: 'INC-22', title: 'Registered office', days: 30 },
+  ];
+  const people = [
+    { id: 'p1', name: 'Anita Rao', din: '01234567', designation: 'MANAGING_DIRECTOR', ceasedOn: null },
+    { id: 'p2', name: 'Suresh Iyer', din: '02345678', designation: 'DIRECTOR', ceasedOn: null },
+  ];
+  const ctx = { eventRules: rules, people, existing: [] as any[] };
+  it('proposes filings with due dates and director-register changes', () => {
+    const r = normalise('BOARD_PAPERS', FIXTURES.BOARD_PAPERS, ctx);
+    const ev = r.values.events;
+    expect(ev.map((e: any) => e.form)).toEqual(['DIR-12', 'DIR-12', 'PAS-3', 'CHG-1', 'INC-22']);
+    expect(ev[0]).toMatchObject({ personAction: 'ADD', personId: null, eventDate: '2026-11-18', dueDate: '2026-12-18' });
+    expect(ev[1]).toMatchObject({ personAction: 'CEASE', personId: 'p2', eventDate: '2026-11-15' });
+    expect(ev[2].person).toBeNull();
+    expect(r.check['events.3.eventDate']).toBeTruthy(); // charge date was unclear
+    expect(r.values.notFiled[0].reason).toMatch(/179\(3\)/);
+  });
+  it('already on the calendar is marked', () => {
+    const r = normalise('BOARD_PAPERS', FIXTURES.BOARD_PAPERS, { ...ctx, existing: [{ ruleCode: 'PAS3', eventDate: '2026-11-18', personId: null }] });
+    expect(r.values.events[2].onCalendar).toBe(true);
+    expect(r.values.events[0].onCalendar).toBe(false);
+  });
+  it('unknown filing codes are dropped with a warning, and check notes follow the renumbering', () => {
+    const raw = structuredClone(FIXTURES.BOARD_PAPERS);
+    raw.data.events.unshift({ ruleCode: 'XYZ', summary: 'Something odd', eventDate: '2026-11-18' });
+    raw.unclear = ['events.4.eventDate'];
+    const r = normalise('BOARD_PAPERS', raw, ctx);
+    expect(r.values.events).toHaveLength(5);
+    expect(r.warnings.some((w) => w.includes('Something odd'))).toBe(true);
+    expect(r.check['events.3.eventDate']).toBeTruthy();
+    expect(r.check['events.4.eventDate']).toBeUndefined();
+  });
+  it('missing date falls back to the meeting date and says so', () => {
+    const raw = structuredClone(FIXTURES.BOARD_PAPERS); raw.data.events[2].eventDate = null; raw.unclear = [];
+    const r = normalise('BOARD_PAPERS', raw, ctx);
+    expect(r.values.events[2].eventDate).toBe('2026-11-18');
+    expect(r.check['events.2.eventDate']).toMatch(/meeting date/);
+  });
+  it('a resignation of someone not on file is flagged, not ceased', () => {
+    const raw = structuredClone(FIXTURES.BOARD_PAPERS); raw.data.events[1].personName = 'Ravi Kumar'; raw.data.events[1].personDin = '09999999';
+    const r = normalise('BOARD_PAPERS', raw, ctx);
+    expect(r.values.events[1].personAction).toBeNull();
+    expect(r.check['events.1.person']).toMatch(/isn’t on the Directors list/);
+  });
+});

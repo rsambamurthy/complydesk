@@ -2,7 +2,7 @@
  * The documents ComplyDesk can read, as data: what to ask the model for (a JSON schema the model must fill in)
  * and how to turn its answer into the app's own field shapes. Adding a document = adding an entry here.
  */
-export type DocType = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR';
+export type DocType = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR' | 'BOARD_PAPERS';
 
 type Schema = Record<string, unknown>;
 const s = (description: string): Schema => ({ type: ['string', 'null'], description });
@@ -45,6 +45,32 @@ export interface DocDef {
 }
 
 export const DOC_TYPES: Record<DocType, DocDef> = {
+  BOARD_PAPERS: {
+    label: 'Board / general meeting papers (find filings)',
+    hint: 'Minutes, resolutions or a circular resolution — finds appointments, resignations, allotments, charges and other events that need an MCA filing.',
+    perm: 'compliance.work',
+    guide: [
+      'These are minutes or resolutions of an Indian private company (board meeting, AGM / EGM, or a circular resolution).',
+      'List every decision or event that needs an event-based MCA filing, using ONLY the filing codes listed below. One event per filing per person.',
+      'eventDate is when the event took effect: the date of appointment / resignation (use the effective date if one is stated), the date of allotment, the date the charge was created or modified, the date the office shift takes effect; otherwise the meeting / resolution date.',
+      'A board approval to borrow is NOT a charge: list CHG-1 only when the papers say a charge / hypothecation / mortgage is created or modified, and put that event in "unclear" if the creation date is not stated.',
+      'Private companies are exempt from filing board resolutions under section 179(3) in MGT-14: propose MGT-14 only for special resolutions and other resolutions that section 117 requires to be filed.',
+      'Decisions that need no filing go in notFiled with the reason. quote: the few words of the document that record the event (at most 20 words).',
+    ].join(' '),
+    schema: obj({
+      meeting: obj({ kind: s('BOARD, AGM, EGM, CIRCULAR or OTHER'), date: s(`Date of the meeting or resolution ${DATE}`), cin: s('CIN of the company, if shown') }),
+      events: arr(obj({
+        ruleCode: s('One of the filing codes listed'),
+        eventDate: s(`When the event took effect ${DATE}`),
+        summary: s('One line: what happened, e.g. "Appointment of Karan Mehta as Additional Director"'),
+        personName: s('Person involved, if any'), personDin: s('Their DIN, if shown'),
+        personRole: s('Their designation as written, if any'),
+        change: s('APPOINTED, RESIGNED, DESIGNATION_CHANGED or null'),
+        quote: s('The words of the document that record it (≤ 20 words)'),
+      }), 'Events that need an MCA filing'),
+      notFiled: arr(obj({ summary: s('Decision'), reason: s('Why no filing is needed') }), 'Decisions noticed that need no filing'),
+    }),
+  },
   MCA_MASTER: {
     label: 'MCA company master data',
     hint: 'The “View company master data” page from the MCA portal, saved as PDF or a screenshot.',

@@ -41,7 +41,7 @@ extractRouter.post('/dsc/apply', requirePerm('clients.manage'), h(async (req, re
   res.json(out);
 }));
 
-extractRouter.post('/:id/apply', requirePerm('clients.manage'), h(async (req, res) => {
+extractRouter.post('/:id/apply', requirePerm('compliance.work'), h(async (req, res) => {
   if (req.body.clientId) assertClientVisible(req, req.body.clientId);
   const out = await applyRead(req.staff!, req.params.id, req.body ?? {});
   await audit(req, 'document.apply', 'extraction', req.params.id, { clientId: out.clientId });
