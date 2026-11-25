@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { reviewFor, checkDraft } from '../services/review.js';
 import { db, schema, h, audit } from '../lib/core.js';
 import { requirePerm, clientScope, assertClientVisible } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
@@ -47,6 +49,27 @@ obligationsRouter.get('/:id', requirePerm('clients.view'), h(async (req, res) =>
   const nameOf = (id: string | null) => names.find((n) => n.id === id)?.name ?? null;
   res.json({ obligation: ob, moves: await movesFor(ob, req.staff!), history: await history(ob.id), settings: settingsOf(req.staff!.tenant),
     preparedBy: nameOf(ob.preparedById), reviewedBy: nameOf(ob.reviewedById), clientApprovedBy: nameOf(ob.clientApprovedById) });
+}));
+
+/** Reviewer check: firm staff only (not client users). */
+const reviewer = (req: any) => {
+  const p = req.staff!.permissions;
+  if (req.staff!.user.clientIds.length || (!p.has('compliance.work') && !p.has('compliance.approve'))) throw new HttpError(403, 'You can’t do this');
+};
+obligationsRouter.get('/:id/review', h(async (req, res) => {
+  reviewer(req);
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  res.json(await reviewFor(tid(req), ob.id));
+}));
+obligationsRouter.post('/:id/review', h(async (req, res) => {
+  reviewer(req);
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  const { attachmentId } = parse(z.object({ attachmentId: z.string().min(1, 'Pick the draft form') }), req.body);
+  const out = await checkDraft(req.staff!, ob.id, attachmentId);
+  await audit(req, 'filing.check', 'obligation', ob.id, { attachmentId });
+  res.json(out);
 }));
 
 obligationsRouter.post('/:id/move', h(async (req, res) => {

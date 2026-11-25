@@ -4,6 +4,15 @@ import type { DocType } from './doctypes.js';
 const KAVERI = 'U72900TN2015PTC101234';
 
 export const FIXTURES: Record<DocType, Record<string, any>> = {
+  DRAFT_FORM: {
+    documentKind: 'Draft form MGT-7', matchesExpected: true, unclear: [],
+    data: {
+      form: 'MGT-7', cin: KAVERI, companyName: 'Kaveri Software Pvt. Ltd.', fy: 2025, agmDate: '2026-09-21',
+      paidUpCapital: 500000, authorisedCapital: 1000000, totalShares: 50000,
+      directors: [{ name: 'Anita Rao', din: '01234567' }, { name: 'Suresh Iyer', din: '02345678' }, { name: 'Ravi Kumar', din: '07777777' }],
+      auditor: { firmName: 'Iyer & Co, Chartered Accountants', frn: '007311S' }, eventDate: null, person: { name: null, din: null },
+    },
+  },
   BOARD_PAPERS: {
     documentKind: 'Minutes of board meeting', matchesExpected: true, unclear: ['events.3.eventDate'],
     data: {

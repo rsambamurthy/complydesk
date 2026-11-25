@@ -428,3 +428,16 @@ export const extractions = pgTable('extractions', {
   outputTokens: integer('output_tokens'),
   createdAt: createdAt(),
 }, (t) => [index('extractions_tenant_ix').on(t.tenantId, t.createdAt)]);
+
+/** Reviewer checks of a draft form against the records (AI reads the draft; code compares). Latest one is shown on the filing. */
+export const filingChecks = pgTable('filing_checks', {
+  id: id(),
+  tenantId: tenantId(),
+  obligationId: text('obligation_id').notNull().references(() => obligations.id, { onDelete: 'cascade' }),
+  attachmentId: text('attachment_id'),
+  fileName: text('file_name'),
+  findings: jsonb('findings').$type<{ level: string; text: string; source: string }[]>().notNull(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  userName: text('user_name'),
+  createdAt: createdAt(),
+}, (t) => [index('filing_checks_ob_ix').on(t.obligationId, t.createdAt)]);

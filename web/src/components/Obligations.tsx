@@ -9,6 +9,7 @@ import type { Meta, Obligation, Person } from '../lib/types';
 import { doneWord, fmtDate, fmtDateTime, fyLabel, isMeeting, money, STAGE, today } from '../lib/format';
 import { Attachments } from './Attachments';
 import { ReadDocument, useReading } from './DocumentReader';
+import { ReviewCheck } from './ReviewCheck';
 import { useLoad } from '../lib/hooks';
 import { Alert, Modal, Spinner } from './ui';
 import { DueDate, Empty, StatusBadge } from './ui';
@@ -109,7 +110,7 @@ interface FilingDetail {
   preparedBy: string | null; reviewedBy: string | null; clientApprovedBy: string | null;
 }
 const FLOW = (s: FilingDetail['settings']) => ['TODO', 'DATA', 'DRAFTED', ...(s.requireReview ? ['REVIEW'] : []), ...(s.requireClientApproval ? ['CLIENT'] : []), 'READY', 'FILED', 'APPROVED'];
-const ACTION_WORD: Record<string, string> = { start: 'Started', drafted: 'Drafted', submit: 'Sent for review', review_ok: 'Reviewed and approved', return: 'Returned for changes', client_ok: 'Client approved', client_return: 'Client sent back', filed: 'Filed on MCA', approved: 'Approved by MCA', resubmit: 'Resubmission asked', not_applicable: 'Marked not applicable', reopen: 'Reopened', status: 'Status changed' };
+const ACTION_WORD: Record<string, string> = { checked: 'Draft checked', start: 'Started', drafted: 'Drafted', submit: 'Sent for review', review_ok: 'Reviewed and approved', return: 'Returned for changes', client_ok: 'Client approved', client_return: 'Client sent back', filed: 'Filed on MCA', approved: 'Approved by MCA', resubmit: 'Resubmission asked', not_applicable: 'Marked not applicable', reopen: 'Reopened', status: 'Status changed' };
 
 function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta; onClose: () => void; onSaved: () => void }) {
   const { data, error, reload } = useLoad<FilingDetail>(`/obligations/${o.id}`);
@@ -195,6 +196,9 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
         </div>
       )}
 
+      {!clientUser && (can('compliance.work') || can('compliance.approve')) && ob.stage !== 'NA' && (
+        <ReviewCheck key={`rc${filesKey}`} obligationId={o.id} open={['DRAFTED', 'REVIEW', 'READY', 'RESUBMIT'].includes(ob.stage)} />
+      )}
       {!clientUser && can('compliance.work') && (
         <div className="field-grid" style={{ marginBottom: 6 }}>
           <div className="field"><label htmlFor="as">Assigned to</label><select id="as" value={assignee ?? ''} onChange={(e) => setAssignee(e.target.value || null)}><option value="">—</option>{(meta?.staff ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
@@ -206,7 +210,7 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
       <h4 style={{ margin: '14px 0 6px' }}>Documents</h4>
       {challan && meta && <ReadDocument kinds={['SRN_CHALLAN']} obligationId={o.id} meta={meta} title="Read the challan"
         onClose={() => setChallan(false)} onDone={(r) => { if (r.srn) setSrn(r.srn); if (r.filedOn) setFiledOn(r.filedOn); setFilesKey((k) => k + 1); }} />}
-      <Attachments key={filesKey} entity="obligation" entityId={o.id} canAdd={can('compliance.work') || can('compliance.client_approve')} canRemove={can('compliance.work') && !clientUser} />
+      <Attachments key={filesKey} onChange={() => setFilesKey((k) => k + 1)} entity="obligation" entityId={o.id} canAdd={can('compliance.work') || can('compliance.client_approve')} canRemove={can('compliance.work') && !clientUser} />
 
       <h4 style={{ margin: '16px 0 6px' }}>History</h4>
       {data.history.length === 0 ? <p className="muted small">Nothing yet.</p> : (

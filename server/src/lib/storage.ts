@@ -14,6 +14,8 @@ export interface StorageDriver {
   /** A stream to pipe, or a short-lived URL to send the browser to. */
   get(key: string, opts: { fileName: string; contentType: string }): Promise<{ stream: NodeJS.ReadableStream } | { url: string }>;
   remove(key: string): Promise<void>;
+  /** The whole file (for reading it on the server, e.g. the reviewer check). */
+  read(key: string): Promise<Buffer>;
 }
 
 /** Keys look like tenantId/clientId/uuid.pdf — anything that could escape is refused. */
@@ -31,6 +33,11 @@ const dbDriver: StorageDriver = {
     return { stream: Readable.from(row.data) };
   },
   async remove(key) { await db.delete(schema.fileBlobs).where(eq(schema.fileBlobs.key, safeKey(key))); },
+  async read(key) {
+    const [row] = await db.select().from(schema.fileBlobs).where(eq(schema.fileBlobs.key, safeKey(key)));
+    if (!row) throw new Error('File not found');
+    return row.data;
+  },
 };
 
 async function s3Driver(): Promise<StorageDriver> {
@@ -46,6 +53,10 @@ async function s3Driver(): Promise<StorageDriver> {
       return { url: await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: safeKey(key), ResponseContentType: contentType, ResponseContentDisposition: `inline; filename="${encodeURIComponent(fileName)}"` }), { expiresIn: 60 }) };
     },
     async remove(key) { await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: safeKey(key) })); },
+    async read(key) {
+      const r = await client.send(new GetObjectCommand({ Bucket: bucket, Key: safeKey(key) }));
+      return Buffer.from(await r.Body!.transformToByteArray());
+    },
   };
 }
 

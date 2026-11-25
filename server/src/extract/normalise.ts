@@ -157,6 +157,16 @@ export function normalise(docType: DocType, raw: Any, ctx: Context = {}): Read {
         check, warnings,
       };
     }
+    case 'DRAFT_FORM': {
+      const dirs = (Array.isArray(d.directors) ? d.directors : []).filter((x: Any) => clean(x?.name) || clean(x?.din))
+        .map((x: Any) => ({ name: clean(x.name) ?? '', din: upper(x.din)?.replace(/^0*(?=\d{8}$)/, '') ?? null }));
+      return { values: {
+        form: clean(d.form), cin: upper(d.cin), companyName: clean(d.companyName), fy: fyOf(d.fy), agmDate: toDate(d.agmDate),
+        paidUpCapital: toMoney(d.paidUpCapital), authorisedCapital: toMoney(d.authorisedCapital), totalShares: Number(d.totalShares) || null,
+        directors: dirs, auditor: d.auditor ? { firmName: clean(d.auditor.firmName), frn: upper(d.auditor.frn) } : null,
+        eventDate: toDate(d.eventDate), person: d.person ? { name: clean(d.person.name), din: upper(d.person.din) } : null,
+      }, check, warnings };
+    }
     case 'BOARD_PAPERS': {
       const v = proposeEvents(raw, ctx.eventRules ?? [], ctx.people ?? [], ctx.existing ?? [], check, warnings);
       cinCheck(v.meeting.cin, ctx, warnings);

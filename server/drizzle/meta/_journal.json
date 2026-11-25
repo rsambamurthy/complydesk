@@ -43,6 +43,13 @@
       "when": 1795611432609,
       "tag": "0005_panoramic_sabra",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795617546942,
+      "tag": "0006_daily_namora",
+      "breakpoints": true
     }
   ]
 }

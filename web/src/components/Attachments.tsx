@@ -8,7 +8,7 @@ import { DropZone } from './DropZone';
 
 interface F { id: string; fileName: string; contentType: string; size: number; uploadedByName: string | null; createdAt: string }
 
-export function Attachments({ entity, entityId, canAdd, canRemove, compact }: { entity: 'client' | 'obligation' | 'meeting'; entityId: string; canAdd: boolean; canRemove: boolean; compact?: boolean }) {
+export function Attachments({ entity, entityId, canAdd, canRemove, compact, onChange }: { entity: 'client' | 'obligation' | 'meeting'; entityId: string; canAdd: boolean; canRemove: boolean; compact?: boolean; onChange?: () => void }) {
   const { data, error, reload } = useLoad<F[]>(`/files?entity=${entity}&entityId=${entityId}`);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
@@ -20,7 +20,7 @@ export function Attachments({ entity, entityId, canAdd, canRemove, compact }: { 
         const fd = new FormData(); fd.append('entity', entity); fd.append('entityId', entityId); fd.append('file', f);
         await api('/files', { body: fd });
       }
-      reload();
+      reload(); onChange?.();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
   return (
@@ -32,7 +32,7 @@ export function Attachments({ entity, entityId, canAdd, canRemove, compact }: { 
             <span aria-hidden>📄</span>
             <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fileName}</a>
             <span className="muted small nowrap">{fmtSize(f.size)}{!compact && ` · ${f.uploadedByName ?? ''} · ${fmtDateTime(f.createdAt)}`}</span>
-            {canRemove && <button className="icon-btn" title="Remove" onClick={async () => { if (window.confirm(`Remove ${f.fileName}?`)) { await api(`/files/${f.id}`, { method: 'DELETE' }).catch((e) => setErr(e.message)); reload(); } }}>✕</button>}
+            {canRemove && <button className="icon-btn" title="Remove" onClick={async () => { if (window.confirm(`Remove ${f.fileName}?`)) { await api(`/files/${f.id}`, { method: 'DELETE' }).catch((e) => setErr(e.message)); reload(); onChange?.(); } }}>✕</button>}
           </li>
         ))}</ul>
       )}

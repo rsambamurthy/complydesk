@@ -21,6 +21,13 @@ const { extractions: x, attachments, obligations, people, shareholders, auditors
 export const dailyLimit = () => Number(process.env.EXTRACT_DAILY_LIMIT) || 200;
 export const extractEnabled = () => readerName() !== null;
 
+/** Documents read per workspace per day (AI calls cost money). Shared by reading and the reviewer check. */
+export async function assertDailyLimit(tenantId: string) {
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(x).where(and(eq(x.tenantId, tenantId), gte(x.createdAt, today)));
+  if (n >= dailyLimit()) throw new HttpError(429, `Your workspace has read ${n} documents today — the daily limit. Try again tomorrow.`);
+}
+
 /** Context that sharpens the checks: the client's CIN, the filing's form. */
 async function contextFor(tenantId: string, clientId?: string | null, obligationId?: string | null) {
   if (obligationId) {
@@ -35,11 +42,10 @@ async function contextFor(tenantId: string, clientId?: string | null, obligation
 
 export async function readUpload(staff: StaffCtx, input: { docType: DocType; file: { buffer: Buffer; mimetype: string; originalname: string; size: number }; clientId?: string | null; obligationId?: string | null }) {
   if (!extractEnabled()) throw new HttpError(503, 'Reading documents isn’t switched on yet — ask Integrata to add the AI key.');
+  if (DOC_TYPES[input.docType].hidden) throw new HttpError(400, 'Pick what kind of document this is');
   if (!READABLE[input.file.mimetype]) throw new HttpError(400, 'Use a PDF or an image (PNG, JPG)');
   const tenantId = staff.tenant.id;
-  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(x).where(and(eq(x.tenantId, tenantId), gte(x.createdAt, today)));
-  if (n >= dailyLimit()) throw new HttpError(429, `Your workspace has read ${n} documents today — the daily limit. Try again tomorrow.`);
+  await assertDailyLimit(tenantId);
   const { clientId, obligationId, ctx } = await contextFor(tenantId, input.clientId, input.obligationId);
   let guide = '';
   if (input.docType === 'BOARD_PAPERS') {
@@ -217,6 +223,8 @@ export async function applyRead(staff: StaffCtx, id: string, body: Record<string
     }
     case 'SRN_CHALLAN':
       throw new HttpError(400, 'A challan is attached to its filing, not applied');
+    case 'DRAFT_FORM':
+      throw new HttpError(400, 'Draft forms are checked from the filing');
   }
 }
 
@@ -263,4 +271,4 @@ export async function purgeUnused() {
   return old.length;
 }
 
-export const docTypeList = () => Object.entries(DOC_TYPES).map(([key, d]) => ({ key, label: d.label, hint: d.hint, perm: d.perm }));
+export const docTypeList = () => Object.entries(DOC_TYPES).filter(([, d]) => !d.hidden).map(([key, d]) => ({ key, label: d.label, hint: d.hint, perm: d.perm }));

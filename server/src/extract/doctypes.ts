@@ -2,7 +2,7 @@
  * The documents ComplyDesk can read, as data: what to ask the model for (a JSON schema the model must fill in)
  * and how to turn its answer into the app's own field shapes. Adding a document = adding an entry here.
  */
-export type DocType = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR' | 'BOARD_PAPERS';
+export type DocType = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR' | 'BOARD_PAPERS' | 'DRAFT_FORM';
 
 type Schema = Record<string, unknown>;
 const s = (description: string): Schema => ({ type: ['string', 'null'], description });
@@ -42,9 +42,28 @@ export interface DocDef {
   schema: Schema;
   /** Extra guidance for this document. */
   guide: string;
+  /** Not offered in the document picker (used by another feature, e.g. the reviewer check). */
+  hidden?: boolean;
 }
 
 export const DOC_TYPES: Record<DocType, DocDef> = {
+  DRAFT_FORM: {
+    label: 'Draft MCA form (for the reviewer check)',
+    hint: 'The filled-in form before it is uploaded to MCA.',
+    perm: 'compliance.work', hidden: true,
+    guide: 'This is a draft of an MCA e-form (e.g. MGT-7, MGT-7A, AOC-4, DIR-12, PAS-3, ADT-1, DPT-3) before filing. Read the values as entered in the form — do not correct them. For lists of directors, give every director listed with DIN.',
+    schema: obj({
+      form: s('Form name, e.g. MGT-7'), cin: s('CIN as entered'), companyName: s('Company name as entered'),
+      fy: n('Start year of the financial year the form is for, if any (FY 2025-26 → 2025)'),
+      agmDate: s(`AGM date as entered ${DATE}`),
+      paidUpCapital: n(`Paid-up capital as entered ${MONEY}`), authorisedCapital: n(`Authorised capital as entered ${MONEY}`),
+      totalShares: n('Total number of equity shares as entered'),
+      directors: arr(obj({ name: s('Name'), din: s('DIN') }), 'Directors listed in the form'),
+      auditor: obj({ firmName: s('Auditor firm'), frn: s('Firm registration number') }),
+      eventDate: s(`For event forms (DIR-12, PAS-3, CHG-1…): date of the event / allotment / appointment ${DATE}`),
+      person: obj({ name: s('For DIR-12: the person appointed / ceasing'), din: s('Their DIN') }),
+    }),
+  },
   BOARD_PAPERS: {
     label: 'Board / general meeting papers (find filings)',
     hint: 'Minutes, resolutions or a circular resolution — finds appointments, resignations, allotments, charges and other events that need an MCA filing.',
