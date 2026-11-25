@@ -4,7 +4,8 @@ import { h } from '../lib/core.js';
 import { requirePlatformAdmin } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
 import { applyTenantAction, getSettings, platformEventsList, settingsInput, tenantAction, tenantList, updateSettings } from '../services/platform.js';
-import { mailConfigured } from '../lib/mailer.js';
+import { mailConfigured, sendMail } from '../lib/mailer.js';
+import { HttpError } from '../lib/core.js';
 import { platformRules, savePlatformRule, createPlatformRule, resetPlatformRule, ruleHistoryFor, ruleInput, newRuleInput } from '../services/rules.js';
 
 export const platformRouter = Router();
@@ -22,3 +23,11 @@ platformRouter.get('/rules/:code/history', h(async (req, res) => res.json(await 
 platformRouter.post('/rules', h(async (req, res) => res.status(201).json(await createPlatformRule(parse(newRuleInput, req.body), req.staff!.user.email))));
 platformRouter.put('/rules/:code', h(async (req, res) => res.json(await savePlatformRule(req.params.code, parse(ruleInput, req.body), req.staff!.user.email))));
 platformRouter.delete('/rules/:code', h(async (req, res) => { await resetPlatformRule(req.params.code, req.staff!.user.email); res.json({ ok: true }); }));
+
+/** Sends a test email to the signed-in platform admin and reports the mail server's exact answer. */
+platformRouter.post('/test-email', h(async (req, res) => {
+  if (!mailConfigured()) throw new HttpError(400, 'Email isn’t set up: SMTP_HOST, SMTP_USER and SMTP_PASS are needed.');
+  try { await sendMail(req.staff!.user.email, 'ComplyDesk test email', 'Email from ComplyDesk is working.\n\n— Integrata'); }
+  catch (e: any) { throw new HttpError(502, `The mail server refused: ${e.response ?? e.message}`); }
+  res.json({ ok: true, to: req.staff!.user.email });
+}));

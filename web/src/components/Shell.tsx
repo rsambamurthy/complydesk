@@ -56,14 +56,14 @@ export function Shell() {
 /** Trial days left / read-only notice and the "confirm your email" reminder (VendorGate's trial-bar styles). */
 function AccessBar() {
   const { me } = useSession();
-  const [resent, setResent] = useState(false);
+  const [resent, setResent] = useState<string | boolean>(false);
   if (!me) return null;
   const a = me.access;
   return (
     <>
       {a.state === 'TRIAL' && <div className={`trial-bar ${a.daysLeft > 7 ? 'quiet' : ''}`} role="status">Free trial · {a.daysLeft} day{a.daysLeft === 1 ? '' : 's'} left{a.clientLimit ? ` · up to ${a.clientLimit} client companies` : ''} · to subscribe, write to <a href="mailto:info@integratatech.ai">info@integratatech.ai</a></div>}
       {!a.ok && <div className="trial-bar ended" role="status">{a.message}</div>}
-      {!me.emailVerified && <div className="trial-bar quiet" role="status">Please confirm your email ({me.user.email}) using the link we sent. {resent ? 'Sent again ✓' : <a href="#" onClick={async (e) => { e.preventDefault(); await api('/auth/resend-verification', { method: 'POST' }); setResent(true); }}>Resend link</a>}</div>}
+      {!me.emailVerified && <div className="trial-bar quiet" role="status">Please confirm your email ({me.user.email}) using the link we sent. {resent === true ? 'Sent again ✓' : <><a href="#" onClick={async (e) => { e.preventDefault(); try { await api('/auth/resend-verification', { method: 'POST' }); setResent(true); } catch { setResent('We couldn’t send the email right now. Please try again later.'); } }}>Resend link</a>{typeof resent === 'string' && <span className="overdue"> {resent}</span>}</>}</div>}
     </>
   );
 }

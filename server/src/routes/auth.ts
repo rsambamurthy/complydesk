@@ -73,6 +73,7 @@ authRouter.post('/verify-email', h(async (req, res) => {
 authRouter.post('/resend-verification', h(async (req, res) => {
   const s = await loadStaff(req);
   if (!s) throw new HttpError(401, 'Please sign in');
-  await sendVerification(s.user.id, s.user.email, s.user.name, s.tenant);
+  try { await sendVerification(s.user.id, s.user.email, s.user.name, s.tenant); }
+  catch (e: any) { console.error('verification mail failed:', e.message); throw new HttpError(502, 'We couldn’t send the email right now.'); }
   res.json({ ok: true, mailSent: mailConfigured() });
 }));

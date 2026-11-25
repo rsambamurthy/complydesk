@@ -31,6 +31,7 @@ export function Platform() {
     <div className="page">
       <div className="page-head"><div><h1>Platform console</h1><p className="muted">Every firm on ComplyDesk. Integrata only.</p></div></div>
       {!settings.data.mailConfigured && <Alert kind="warning">Email isn’t set up yet (SMTP_* variables), so verification and approval emails are only written to the server log.</Alert>}
+      <TestEmail />
       <SettingsCard s={settings.data} onSaved={settings.reload} />
       <section className="card">
         <div className="toolbar">
@@ -121,5 +122,20 @@ function TenantModal({ t, onClose, onDone }: { t: T; onClose: () => void; onDone
         <div><button className="btn btn-secondary" disabled={busy} onClick={() => act({ action: 'notes', notes })}>Save notes</button></div>
       </div>
     </Modal>
+  );
+}
+
+function TestEmail() {
+  const [state, setState] = useState<{ kind: 'success' | 'error'; text: string }>();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="btn-row" style={{ marginBottom: 12 }}>
+      <button className="btn btn-secondary btn-sm" disabled={busy} onClick={async () => {
+        setBusy(true); setState(undefined);
+        try { const r = await api('/platform/test-email', { method: 'POST' }); setState({ kind: 'success', text: `Test email sent to ${r.to}.` }); }
+        catch (e: any) { setState({ kind: 'error', text: e.message }); } finally { setBusy(false); }
+      }}>{busy ? 'Sending…' : 'Send me a test email'}</button>
+      {state && <Alert kind={state.kind}>{state.text}</Alert>}
+    </div>
   );
 }
