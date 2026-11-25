@@ -1,10 +1,11 @@
 /** Client master and a client's compliance calendar. Routes only check permissions and shape responses. */
 import { Router } from 'express';
 import { and, asc, eq, ilike, inArray, or } from 'drizzle-orm';
-import { db, schema, h, audit } from '../lib/core.js';
+import { db, schema, h, audit, HttpError } from '../lib/core.js';
 import { requirePerm, clientScope, assertClientVisible } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
 import { auditorInput, clientInput, eventInput, personInput, shareholderInput, yearInput, FLAGS, DESIGNATIONS } from '../lib/validators.js';
+import { closeDocRequest, createDocRequest, docRequestClient, docRequestInput, docRequests } from '../services/messaging.js';
 import { buildReport, recipientsFor, reportLog, sendReport } from '../services/clientReport.js';
 import { createClient, updateClient, clientDetail, peopleSvc, shareholdersSvc, auditorsSvc, setYear } from '../services/clients.js';
 import { addEvent, perClient, summary } from '../services/obligations.js';
@@ -89,6 +90,21 @@ clientsRouter.put('/:id/years/:fy', manage, h(async (req, res) => {
   const r = await setYear(tid(req), req.params.id, Number(req.params.fy), parse(yearInput, req.body));
   await audit(req, 'client.year', 'client', req.params.id, { fy: req.params.fy, ...req.body });
   res.json(r);
+}));
+
+// ---- Document requests (WhatsApp + email to the client's users) ----------------------------------------------
+clientsRouter.get('/:id/doc-requests', view, h(async (req, res) => { assertClientVisible(req, req.params.id); res.json(await docRequests(tid(req), req.params.id)); }));
+clientsRouter.post('/:id/doc-requests', requirePerm('compliance.work'), h(async (req, res) => {
+  assertClientVisible(req, req.params.id);
+  const out = await createDocRequest(req.staff!.tenant, req.staff!, req.params.id, parse(docRequestInput, req.body));
+  await audit(req, 'client.doc_request', 'client', req.params.id, { items: out.items });
+  res.status(201).json(out);
+}));
+clientsRouter.patch('/doc-requests/:rid', requirePerm('compliance.work'), h(async (req, res) => {
+  assertClientVisible(req, await docRequestClient(tid(req), req.params.rid));
+  const status = ['RECEIVED', 'CANCELLED', 'OPEN'].includes(req.body?.status) ? req.body.status : null;
+  if (!status) throw new HttpError(400, 'Pick a status');
+  res.json(await closeDocRequest(tid(req), req.params.rid, status));
 }));
 
 // ---- Compliance report: view (anyone who sees the client, client users included), email, sent log -------------

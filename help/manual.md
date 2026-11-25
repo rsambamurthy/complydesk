@@ -444,6 +444,16 @@ Each item links straight to the client or filing. Anyone can turn their own emai
 
 Calendars are also re-worked every night, so a new financial year, director KYC cycles and estimated dates move on their own.
 
+### WhatsApp
+
+When Integrata has connected the WhatsApp Business number and you switch on **Administration → Settings → WhatsApp**, client users who agreed to it get WhatsApp messages:
+
+- **Approval request** — when a filing reaches the client for approval.
+- **Document request** — from the client's **Documents** tab → **Request documents** (list the documents and the date needed). It also goes by email. The client uploads in the same tab; press **Received** when you have them.
+- **Reminders** — approvals waiting 2 days or more, and documents due within 2 days or late (at most once every 3 days each).
+
+Record each person's mobile and their consent under **Users** (or when adding a client user). WhatsApp requires consent — tick it only when the person has given it. **Settings → WhatsApp messages** shows what was sent.
+
 ## 12. Administration
 
 Firm Admins run the workspace from the Administration menu; Integrata runs the platform from its own console.

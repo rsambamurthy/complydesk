@@ -20,6 +20,8 @@ export interface TenantSettings {
   blockOnCheckErrors?: boolean;
   /** Email each client its compliance report on the 1st of every month. */
   monthlyClientReport?: boolean;
+  /** WhatsApp messages to client users (approval requests, document requests, reminders) — needs Integrata's WhatsApp set-up. */
+  whatsappEnabled?: boolean;
   /** The firm's details for tax invoices (services/billing.ts). */
   billing?: BillingProfile;
 }
@@ -106,6 +108,8 @@ export const users = pgTable('users', {
   /** Opted out of the daily reminder email. */
   remindersOff: boolean('reminders_off').notNull().default(false),
   mobile: text('mobile'),
+  /** The person agreed to receive WhatsApp messages (recorded by the firm; WhatsApp requires opt-in). */
+  whatsappOptInAt: timestamp('whatsapp_opt_in_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('users_tenant_email_uq').on(t.tenantId, t.email)]);
 
@@ -663,3 +667,38 @@ export const regReviews = pgTable('reg_reviews', {
   note: text('note'),
   at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.tenantId, t.updateId] })]);
+
+/** Documents asked of a client (by WhatsApp and email); the client uploads them to its Documents tab. */
+export const docRequests = pgTable('doc_requests', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  items: jsonb('items').$type<string[]>().notNull(),
+  note: text('note'),
+  dueDate: date('due_date'),
+  /** OPEN | RECEIVED | CANCELLED */
+  status: text('status').notNull().default('OPEN'),
+  sentTo: jsonb('sent_to').$type<{ name: string; email: string; whatsapp: boolean }[]>().notNull().default([]),
+  requestedBy: text('requested_by').references(() => users.id, { onDelete: 'set null' }),
+  lastRemindedAt: timestamp('last_reminded_at', { withTimezone: true }),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('doc_requests_client_ix').on(t.clientId, t.status)]);
+
+/** Every WhatsApp message sent (or logged when WhatsApp isn't set up): to whom, which template, result. */
+export const messageLog = pgTable('message_log', {
+  id: id(),
+  tenantId: tenantId(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+  channel: text('channel').notNull().default('WHATSAPP'),
+  to: text('to').notNull(),
+  template: text('template').notNull(),
+  params: jsonb('params').$type<string[]>().notNull().default([]),
+  /** SENT | FAILED | LOGGED (WhatsApp not set up) */
+  status: text('status').notNull(),
+  error: text('error'),
+  /** What it was about: obligation:<id> | docreq:<id> */
+  ref: text('ref'),
+  providerId: text('provider_id'),
+  createdAt: createdAt(),
+}, (t) => [index('message_log_tenant_ix').on(t.tenantId, t.createdAt), index('message_log_ref_ix').on(t.ref)]);

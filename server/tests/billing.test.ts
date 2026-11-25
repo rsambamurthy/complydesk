@@ -42,3 +42,15 @@ describe('billing arithmetic', () => {
     expect(feeFor('DPT3', new Map(), firm)).toBeNull();
   });
 });
+
+import { waNumber, waParam } from '../src/lib/whatsapp.js';
+describe('WhatsApp numbers', () => {
+  it('Indian mobiles become 91 + 10 digits; landlines and junk are refused', () => {
+    expect(waNumber('98400 12345')).toBe('919840012345');
+    expect(waNumber('+91-98400-12345')).toBe('919840012345');
+    expect(waNumber('09840012345')).toBe('919840012345');
+    expect(waNumber('044-2434567')).toBeNull();
+    expect(waNumber(null)).toBeNull();
+  });
+  it('template parameters lose new lines and tabs', () => expect(waParam('a\nb\t c')).toBe('a b c'));
+});

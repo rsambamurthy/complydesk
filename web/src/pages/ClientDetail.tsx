@@ -1,4 +1,5 @@
 import { Registers } from '../components/Registers';
+import { DocRequests } from '../components/DocRequests';
 import { BillingTiles, ClientBillingForm, FeeTable, InvoiceTable, UnbilledWork, type Summary as BillingSummary } from '../components/Billing';
 import { Fragment, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -84,6 +85,7 @@ export function ClientDetail() {
           {tab === 'Billing' && <ClientBillingTab clientId={c.id} />}
           {tab === 'Registers' && <Registers key={docsKey} clientId={c.id} onRecords={setTab} />}
           {tab === 'Documents' && <div className="pad stack" style={{ gap: 8 }}>
+            <DocRequests clientId={c.id} />
             <p className="muted small" style={{ margin: 0 }}>Company records: master data, incorporation papers, annual returns, financial statements, auditor letters. Documents read into this client are kept here too.</p>
             <Attachments key={docsKey} entity="client" entityId={c.id} canAdd={can('compliance.work')} canRemove={can('clients.manage')} />
           </div>}

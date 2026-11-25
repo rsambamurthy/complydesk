@@ -51,9 +51,11 @@ export function ClientUsers({ clientId, clientName }: { clientId: string; client
             { key: 'email', label: 'Email', type: 'email', required: true },
             { key: 'role', label: 'Role', type: 'select', required: true, options: clientRoles.map((r) => ({ value: r.id, label: `${r.name} — ${r.description ?? ''}` })) },
             { key: 'password', label: 'First password', type: 'password', required: true, help: 'At least 10 characters. Share it with them securely.' },
+            { key: 'mobile', label: 'Mobile (for WhatsApp)', placeholder: '10 digits' },
+            { key: 'whatsappOptIn', label: 'They agreed to receive WhatsApp messages', type: 'checkbox', wide: true, show: (v) => !!v.mobile },
           ]}
           initial={{ role: clientRoles.find((r) => r.key === 'CLIENT_VIEWER')?.id }}
-          onSave={async (v) => { await api('/admin/users', { body: { name: v.name, email: v.email, password: v.password, roleIds: [v.role], clientIds: [clientId], status: 'ACTIVE' } }); here.reload(); }}
+          onSave={async (v) => { await api('/admin/users', { body: { name: v.name, email: v.email, password: v.password, roleIds: [v.role], clientIds: [clientId], status: 'ACTIVE', mobile: v.mobile || null, whatsappOptIn: !!v.whatsappOptIn && !!v.mobile } }); here.reload(); }}
           onClose={() => setAdding(undefined)} />
       )}
       {adding === 'existing' && <ExistingUser clientId={clientId} clientName={clientName} clientRoleIds={clientRoles.map((r) => r.id)} have={here.data.map((u) => u.id)} onClose={() => setAdding(undefined)} onDone={here.reload} />}

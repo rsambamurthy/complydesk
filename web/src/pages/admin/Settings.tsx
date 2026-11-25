@@ -7,7 +7,7 @@ import { Fields, useRecordForm } from '../../components/RecordForm';
 import { useSession } from '../../lib/session';
 import { fmtDate } from '../../lib/format';
 
-interface S { reminderDays: number[]; reminderOverdue: boolean; reminderClientUsers: boolean; requireReview: boolean; requireClientApproval: boolean; blockOnCheckErrors: boolean; monthlyClientReport: boolean }
+interface S { reminderDays: number[]; reminderOverdue: boolean; reminderClientUsers: boolean; requireReview: boolean; requireClientApproval: boolean; blockOnCheckErrors: boolean; monthlyClientReport: boolean; whatsappEnabled: boolean }
 interface Item { group: string; text: string; date: string; link: string }
 const GROUP: Record<string, string> = { overdue: 'Overdue', review: 'Waiting for your review', approval: 'Waiting for your approval', due: 'Coming up', minutes: 'Minutes to sign', dsc: 'DSC expiring' };
 
@@ -21,6 +21,7 @@ export function Settings() {
       <div className="page-head"><div><h1>Settings</h1><p className="muted">How filings move through your firm, and the daily reminder email.</p></div></div>
       <SettingsForm s={data} edit={can('tenant.settings')} onSaved={reload} />
       <Preview />
+      {can("tenant.settings") && <WhatsAppLog />}
     </div>
   );
 }
@@ -48,15 +49,36 @@ function SettingsForm({ s, edit, onSaved }: { s: S; edit: boolean; onSaved: () =
         <Fields form={form} fields={[
           { key: 'monthlyClientReport', label: 'Email each client its compliance report on the 1st of every month', type: 'checkbox', wide: true, help: 'Goes to the client’s accounts / company email and its client users. You can also send it any time from the client’s page (Compliance report).' },
         ]} />
+        <h3 style={{ margin: '10px 0 0' }}>WhatsApp</h3>
+        <Fields form={form} fields={[
+          { key: 'whatsappEnabled', label: 'Send WhatsApp messages to client users who agreed to them', type: 'checkbox', wide: true, help: 'Approval requests when a filing reaches the client, document requests, and reminders (approvals waiting 2+ days, documents due). Add mobiles and consent under Users.' },
+        ]} />
       </fieldset>
       {form.error && <Alert kind="error">{form.error}</Alert>}
       {ok && <Alert kind="success">Saved.</Alert>}
       {edit && <div><button className="btn btn-primary" disabled={form.busy} onClick={() => form.submit(async (v) => {
         const days = String(v.reminderDays ?? '').split(/[,\s]+/).filter(Boolean).map(Number);
         if (days.some((d) => !Number.isInteger(d) || d < 0 || d > 90)) throw new Error('Days must be whole numbers from 0 to 90');
-        await api('/admin/settings', { method: 'PUT', body: { reminderDays: days, reminderOverdue: !!v.reminderOverdue, reminderClientUsers: !!v.reminderClientUsers, requireReview: !!v.requireReview, requireClientApproval: !!v.requireClientApproval, blockOnCheckErrors: !!v.blockOnCheckErrors, monthlyClientReport: !!v.monthlyClientReport } });
+        await api('/admin/settings', { method: 'PUT', body: { reminderDays: days, reminderOverdue: !!v.reminderOverdue, reminderClientUsers: !!v.reminderClientUsers, requireReview: !!v.requireReview, requireClientApproval: !!v.requireClientApproval, blockOnCheckErrors: !!v.blockOnCheckErrors, monthlyClientReport: !!v.monthlyClientReport, whatsappEnabled: !!v.whatsappEnabled } });
         setOk(true); onSaved();
       })}>Save settings</button></div>}
+    </section>
+  );
+}
+
+/** WhatsApp: whether Integrata has set it up, the templates, and the last messages. */
+export function WhatsAppLog() {
+  const { data } = useLoad<{ configured: boolean; templates: { key: string; name: string; example: string }[]; log: { id: string; to: string; template: string; status: string; error: string | null; createdAt: string; name: string | null }[] }>('/admin/whatsapp');
+  if (!data) return null;
+  return (
+    <section className="card pad stack">
+      <h3 style={{ margin: 0 }}>WhatsApp messages</h3>
+      {!data.configured && <Alert kind="info">WhatsApp isn’t connected yet — messages are recorded here but not sent. Integrata connects the WhatsApp Business number.</Alert>}
+      {!data.log.length ? <p className="muted small" style={{ margin: 0 }}>No messages yet.</p> : (
+        <table className="table compact"><thead><tr><th>When</th><th>To</th><th>Message</th><th>Result</th></tr></thead>
+          <tbody>{data.log.slice(0, 30).map((m) => <tr key={m.id} style={{ cursor: 'default' }}><td className="small">{new Date(m.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td><td className="small">{m.name ?? ''} <span className="muted">+{m.to}</span></td><td className="small">{({ approval: 'Approval request', documents: 'Document request', reminder: 'Reminder' } as Record<string, string>)[m.template] ?? m.template}</td>
+            <td className="small">{m.status === 'SENT' ? <span className="ok-text">Sent</span> : m.status === 'LOGGED' ? <span className="muted">Recorded (not connected)</span> : <span className="overdue" title={m.error ?? ''}>Failed</span>}</td></tr>)}</tbody></table>
+      )}
     </section>
   );
 }

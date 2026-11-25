@@ -7,6 +7,7 @@
  *                                 └──────────────────────────────────── RESUBMIT ←─────────────┘
  * REVIEW and CLIENT are skipped when the firm switches them off (Administration → Settings).
  */
+import { approvalRequested } from './messaging.js';
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema, HttpError } from '../lib/core.js';
@@ -151,6 +152,7 @@ export async function move(ob: Obligation, staff: StaffCtx, input: z.output<type
   if (!next) throw new HttpError(409, 'Someone else just moved this filing — refresh');
   if (gate) await db.insert(ev).values({ obligationId: ob.id, action: 'override', fromStage: ob.stage, toStage: ob.stage, note: `Approved despite ${gate.n} issue${gate.n === 1 ? '' : 's'} to fix: ${input.note}`, userId: staff.user.id, userName: staff.user.name });
   await db.insert(ev).values({ obligationId: ob.id, action: m.action, fromStage: ob.stage, toStage: to, note: input.note ?? (m.action === 'filed' ? `SRN ${input.srn}` : null), userId: staff.user.id, userName: staff.user.name });
+  if (to === 'CLIENT') approvalRequested(staff.tenant, next).catch((e) => console.error('approval WhatsApp failed', e));
   return next;
 }
 
