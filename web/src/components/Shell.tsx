@@ -19,6 +19,7 @@ export function Shell() {
     ...keep([
       { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', show: can('clients.view') },
       { to: '/calendar', label: 'Compliance calendar', icon: 'calendar', show: can('clients.view') },
+      { to: '/meetings', label: 'Meetings', icon: 'meeting', show: can('clients.view') },
     ]),
     group('clients', 'Clients', 'clients', [
       { to: '/clients', label: 'All clients', icon: 'clients', end: true, show: can('clients.view') },

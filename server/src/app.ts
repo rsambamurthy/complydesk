@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { HttpError, env } from './lib/core.js';
 import { requireStaff, requireWritable } from './auth/session.js';
 import { platformRouter } from './routes/platform.js';
+import { meetingsRouter } from './routes/meetings.js';
 import { authRouter } from './routes/auth.js';
 import { clientsRouter } from './routes/clients.js';
 import { obligationsRouter } from './routes/obligations.js';
@@ -31,6 +32,7 @@ export function createApp() {
   app.use('/api/clients', requireStaff, requireWritable, clientsRouter);
   app.use('/api/obligations', requireStaff, requireWritable, obligationsRouter);
   app.use('/api/import', requireStaff, requireWritable, importRouter);
+  app.use('/api/meetings', requireStaff, requireWritable, meetingsRouter);
   app.use('/api/admin', requireStaff, requireWritable, adminRouter);
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'No such API')));
 

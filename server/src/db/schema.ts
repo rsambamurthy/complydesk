@@ -277,3 +277,66 @@ export type Person = typeof people.$inferSelect;
 export type Auditor = typeof auditors.$inferSelect;
 export type Rule = typeof rules.$inferSelect;
 export type Obligation = typeof obligations.$inferSelect;
+
+// ---- Meetings (board, AGM, EGM) ------------------------------------------------------------------------------
+
+/** A board or general meeting of a client. Status: SCHEDULED → NOTICE_SENT → HELD → MINUTES_SIGNED (or CANCELLED). */
+export const meetings = pgTable('meetings', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  /** BOARD | AGM | EGM */
+  type: text('type').notNull(),
+  fy: integer('fy').notNull(),
+  title: text('title').notNull(),
+  date: date('date').notNull(),
+  time: text('time'),
+  /** PHYSICAL | VIDEO | HYBRID */
+  mode: text('mode').notNull().default('PHYSICAL'),
+  venue: text('venue'),
+  videoLink: text('video_link'),
+  status: text('status').notNull().default('SCHEDULED'),
+  noticeSentOn: date('notice_sent_on'),
+  /** Consent to hold the meeting at shorter notice (general meetings: members; board: urgent business with an independent director present). */
+  shorterNotice: boolean('shorter_notice').notNull().default(false),
+  heldOn: date('held_on'),
+  chairpersonId: text('chairperson_id').references(() => people.id, { onDelete: 'set null' }),
+  /** General meetings: members present in person (quorum, Sec 103). */
+  membersPresent: integer('members_present'),
+  minutes: text('minutes'),
+  minutesSignedOn: date('minutes_signed_on'),
+  /** The calendar item this meeting satisfied (board meeting for the period / AGM). */
+  obligationId: text('obligation_id').references(() => obligations.id, { onDelete: 'set null' }),
+  createdBy: text('created_by'),
+  createdAt: createdAt(),
+}, (t) => [index('meetings_client_ix').on(t.clientId), index('meetings_tenant_date_ix').on(t.tenantId, t.date)]);
+
+/** One agenda item; a resolution when resolutionType isn't NONE. Passing it creates the filings in `filings`. */
+export const meetingItems = pgTable('meeting_items', {
+  id: id(),
+  meetingId: text('meeting_id').notNull().references(() => meetings.id, { onDelete: 'cascade' }),
+  seq: integer('seq').notNull(),
+  templateKey: text('template_key'),
+  title: text('title').notNull(),
+  /** NONE | BOARD | ORDINARY | SPECIAL */
+  resolutionType: text('resolution_type').notNull().default('NONE'),
+  text: text('text'),
+  personId: text('person_id').references(() => people.id, { onDelete: 'set null' }),
+  /** Event filings to create when passed (rule codes, e.g. DIR12) and annual items it completes (e.g. MBP1_DIR8). */
+  filings: jsonb('filings').$type<string[]>().notNull().default([]),
+  completes: jsonb('completes').$type<string[]>().notNull().default([]),
+  /** PENDING | PASSED | NOT_PASSED | NOTED | DEFERRED */
+  outcome: text('outcome').notNull().default('PENDING'),
+  createdObligationIds: jsonb('created_obligation_ids').$type<string[]>().notNull().default([]),
+});
+
+/** Directors' attendance (board and general meetings). */
+export const meetingAttendance = pgTable('meeting_attendance', {
+  meetingId: text('meeting_id').notNull().references(() => meetings.id, { onDelete: 'cascade' }),
+  personId: text('person_id').notNull().references(() => people.id, { onDelete: 'cascade' }),
+  /** PRESENT | VIDEO | LEAVE | ABSENT */
+  status: text('status').notNull(),
+}, (t) => [primaryKey({ columns: [t.meetingId, t.personId] })]);
+
+export type Meeting = typeof meetings.$inferSelect;
+export type MeetingItem = typeof meetingItems.$inferSelect;

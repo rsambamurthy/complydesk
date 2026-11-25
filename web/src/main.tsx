@@ -11,6 +11,9 @@ import { Shell } from './components/Shell';
 import { Login } from './pages/Login';
 import { Signup, VerifyEmail } from './pages/Signup';
 import { Platform } from './pages/Platform';
+import { Meetings } from './pages/Meetings';
+import { MeetingDetail } from './pages/MeetingDetail';
+import { MeetingPrint } from './pages/MeetingPrint';
 import { Dashboard } from './pages/Dashboard';
 import { Calendar } from './pages/Calendar';
 import { Clients } from './pages/Clients';
@@ -28,9 +31,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/meetings/:id/print/:doc" element={<RequireStaff><MeetingPrint /></RequireStaff>} />
           <Route element={<RequireStaff><Shell /></RequireStaff>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
+            <Route path="/meetings" element={<Meetings />} />
+            <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/import" element={<ImportClients />} />
             <Route path="/clients/:id" element={<ClientDetail />} />

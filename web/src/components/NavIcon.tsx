@@ -40,6 +40,7 @@ const PATHS: Record<string, string> = {
   rules: 'M4 6h16M4 12h10M4 18h7M17 15l2 2 3-4',
   upload: 'M12 16V4M7 9l5-5 5 5M4 20h16',
   shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+  meeting: 'M4 18v-1a4 4 0 014-4h8a4 4 0 014 4v1M12 10a3 3 0 100-6 3 3 0 000 6M3 21h18',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
 };
 

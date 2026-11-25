@@ -11,10 +11,11 @@ import { EventModal, ObligationTable } from '../components/Obligations';
 import { TabStrip } from '../components/TabStrip';
 import { useSession } from '../lib/session';
 import { ClientUsers } from '../components/ClientUsers';
+import { ClientMeetings } from './Meetings';
 
 interface Detail { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[]; summary: Summary; rules: { code: string; form: string; title: string; applies: boolean }[] }
 
-const TABS = ['Compliance', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details', 'Client users'] as const;
+const TABS = ['Compliance', 'Meetings', 'Directors & KMP', 'Shareholders', 'Auditor', 'Details', 'Client users'] as const;
 
 export function ClientDetail() {
   const { id } = useParams();
@@ -67,6 +68,7 @@ export function ClientDetail() {
                 { label: 'Term', cell: (a) => (a.termFromFy && a.termToFy ? `${fyLabel(a.termFromFy)} to ${fyLabel(a.termToFy)}` : '—') },
               ]} />
           )}
+          {tab === 'Meetings' && <ClientMeetings clientId={c.id} />}
           {tab === 'Client users' && <ClientUsers clientId={c.id} clientName={c.name} />}
           {tab === 'Details' && (
             <dl className="kv pad">
