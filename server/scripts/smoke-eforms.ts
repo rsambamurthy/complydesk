@@ -37,7 +37,9 @@ ok(next.parts.flatMap((x: any) => x.fields).find((x: any) => x.key === 'turnover
 const x = await exec.call(`/obligations/${mgt7.id}/form.xlsx`, { raw: true });
 ok(x.type?.includes('spreadsheetml') && x.size > 3000, 'Excel download');
 const dpt = all.find((o: any) => o.form === 'DPT-3');
-await exec.call(`/obligations/${dpt.id}/form`, { expect: 404 });
+ok((await exec.call(`/obligations/${dpt.id}/form`)).form === 'DPT-3', 'DPT-3 has a pack too');
+const kyc = all.find((o: any) => o.form === 'DIR-3 KYC');
+if (kyc) await exec.call(`/obligations/${kyc.id}/form`, { expect: 404 });
 ok(true, 'forms without a pack say so');
 const client = await admin.call(`/clients/${kaveri.id}`);
 ok(client.client.profile.pan === 'AABCK1234L', 'profile stored on the client');

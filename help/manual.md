@@ -340,6 +340,8 @@ For MGT-7, MGT-7A, AOC-4, DIR-12, ADT-1 and PAS-3, ComplyDesk lays out every fie
 
 ### MCA form data
 
+Packs exist for MGT-7 / MGT-7A, AOC-4, DIR-12, ADT-1, PAS-3, DPT-3, MSME-1, CHG-1, CHG-4, MGT-14, SH-7 and INC-22. CHG-1 and CHG-4 take the charge from the client's register of charges; MGT-14, SH-7 and INC-22 take the meeting and resolution that created the filing.
+
 1.  Open the filing → **Open … form data**.
 
 2.  Each field shows its value and where it came from: **From records** (fix it in the client record if missing), **Client profile** (typed once — PAN, phone, activity codes — reused every year) or **This filing** (turnover, net worth, reason for cessation, shares allotted…).

@@ -85,3 +85,45 @@ describe('event packs', () => {
     expect(field(b, 'from')!.value).toBe('FY 2021-22'); expect(field(b, 'years')!.value).toBe('5');
   });
 });
+
+describe('new packs: DPT-3, MSME-1, CHG-1, CHG-4, MGT-14, SH-7, INC-22', () => {
+  const charge = { chargeId: '100845123', createdOn: '2026-04-15', modifiedOn: null, satisfiedOn: '2026-11-20', holder: 'HDFC Bank Limited', holderAddress: 'Mumbai', amount: 15000000, nature: 'HYPOTHECATION', property: 'Stock and book debts', instrument: 'Deed of hypothecation', terms: 'Repo + 3.25%', modification: null };
+  it('DPT-3 adds up the amounts not treated as deposits', () => {
+    const b = buildForm(FORM_SPECS.DPT3, ctx({ ob: { ruleCode: 'DPT3', form: 'DPT-3', fy: 2025, dueDate: '2026-06-30', eventDate: null, personId: null }, formData: { fromDirectors: '500000', fromBanks: '1500000' } }));
+    expect(field(b, 'total')!.value).toBe('20,00,000');
+    expect(field(b, 'asOn')!.value).toBe('31/03/2026');
+    expect(b.attachments.some((a) => /Auditor/.test(a.name))).toBe(false);
+  });
+  it('MSME-1 picks the half-year from the due date', () => {
+    const b = buildForm(FORM_SPECS.MSME1, ctx({ ob: { ruleCode: 'MSME1', form: 'MSME-1', fy: 2026, dueDate: '2026-10-31', eventDate: null, personId: null } }));
+    expect(field(b, 'period')!.value).toBe('April to September');
+  });
+  it('CHG-1 comes from the register of charges', () => {
+    const b = buildForm(FORM_SPECS.CHG1, ctx({ ob: { ruleCode: 'CHG1', form: 'CHG-1', fy: 2026, dueDate: '2026-05-15', eventDate: '2026-04-15', personId: null }, charges: [charge] }));
+    expect(field(b, 'purpose')!.value).toBe('Creation of charge');
+    expect(field(b, 'holder')!.value).toBe('HDFC Bank Limited');
+    expect(field(b, 'amount')!.value).toBe('1,50,00,000');
+    expect(field(b, 'nature')!.value).toBe('Hypothecation');
+  });
+  it('CHG-1 without a register entry says so', () => {
+    const b = buildForm(FORM_SPECS.CHG1, ctx({ ob: { ruleCode: 'CHG1', form: 'CHG-1', fy: 2026, dueDate: '2026-05-15', eventDate: '2026-04-15', personId: null }, charges: [] }));
+    expect(b.progress.missing).toContain('Form filed for');
+  });
+  it('CHG-4 finds the satisfied charge', () => {
+    const b = buildForm(FORM_SPECS.CHG4, ctx({ ob: { ruleCode: 'CHG4', form: 'CHG-4', fy: 2026, dueDate: '2026-12-20', eventDate: '2026-11-20', personId: null }, charges: [charge] }));
+    expect(field(b, 'chargeId')!.value).toBe('100845123');
+  });
+  it('MGT-14 and SH-7 from the meeting that passed the resolution', () => {
+    const fromMeeting = { type: 'EGM' as const, title: 'EGM', date: '2026-12-20', items: [{ title: 'Increase in authorised share capital', resolutionType: 'ORDINARY', text: 'RESOLVED…', explanatory: 'x' }] };
+    const m = buildForm(FORM_SPECS.MGT14, ctx({ ob: { ruleCode: 'MGT14', form: 'MGT-14', fy: 2026, dueDate: '2027-01-19', eventDate: '2026-12-20', personId: null }, fromMeeting }));
+    expect(field(m, 'meetingType')!.value).toBe('Extraordinary general meeting');
+    expect(field(m, 'subject')!.value).toBe('Increase in authorised share capital');
+    const s = buildForm(FORM_SPECS.SH7, ctx({ ob: { ruleCode: 'SH7', form: 'SH-7', fy: 2026, dueDate: '2027-01-19', eventDate: '2026-12-20', personId: null }, fromMeeting, formData: { authBefore: '500000' } }));
+    expect(field(s, 'increase')!.value).toBe('5,00,000');
+  });
+  it('INC-22 asks for an NOC only when the company doesn’t own the premises', () => {
+    const base = { ob: { ruleCode: 'INC22', form: 'INC-22', fy: 2026, dueDate: '2026-12-30', eventDate: '2026-11-30', personId: null } };
+    expect(buildForm(FORM_SPECS.INC22, ctx({ ...base, formData: { ownership: 'Owned by the company' } })).attachments.some((a) => /NOC/.test(a.name))).toBe(false);
+    expect(buildForm(FORM_SPECS.INC22, ctx({ ...base, formData: { ownership: 'Taken on lease' } })).attachments.some((a) => /NOC/.test(a.name))).toBe(true);
+  });
+});

@@ -259,9 +259,183 @@ const pas3: FormSpec = {
   ],
 };
 
+// ---- DPT-3 ------------------------------------------------------------------------------------------------------
+const money = (key: string, label: string, extra: Partial<FieldSpec> = {}): FieldSpec => ({ key, label, input: { scope: 'filing', type: 'number', default: '0' }, ...extra });
+const dpt3: FormSpec = {
+  form: 'DPT-3', title: 'Return of deposits / particulars of money not treated as deposits',
+  note: 'Figures as on 31 March, from the audited balance sheet. Private companies: amounts from members and directors are shown separately.',
+  parts: (c) => [
+    { title: 'Company', fields: [...company(), { key: 'asOn', label: 'Return as on', value: (c) => fmt(fyEnd(c.ob.fy)) }] },
+    { title: 'Net worth (as per the latest audited balance sheet)', fields: [
+      { key: 'paidAmt', label: 'Paid-up share capital (₹)', value: (c) => num(c.client.paidUpCapital), fixAt: 'details' },
+      money('freeReserves', 'Free reserves (₹)'), money('securitiesPremium', 'Securities premium (₹)'),
+      money('netWorth', 'Net worth (₹)', { input: { scope: 'filing', type: 'number' } }),
+    ] },
+    { title: 'Particulars of receipts not considered as deposits (outstanding as on 31 March)', fields: [
+      money('fromDirectors', 'Amount received from directors (₹)', { help: 'Needs a written declaration that it is not from borrowed funds.' }),
+      money('fromRelatives', 'Amount received from relatives of directors (₹)', { show: () => c.client.companyType === 'PRIVATE' }),
+      money('fromMembers', 'Amount received from members (₹)', { show: () => c.client.companyType === 'PRIVATE' }),
+      money('fromCompanies', 'Amount received from other companies (₹)'),
+      money('fromBanks', 'Loans from banks / financial institutions (₹)'),
+      money('advances', 'Advances for supply of goods / services (₹)'),
+      money('others', 'Any other amount not treated as deposit (₹)'),
+      { key: 'total', label: 'Total (₹)', value: (c) => num(['fromDirectors', 'fromRelatives', 'fromMembers', 'fromCompanies', 'fromBanks', 'advances', 'others'].reduce((t, k) => t + Number(c.formData[k] ?? 0), 0)) },
+    ] },
+    { title: 'Deposits', fields: [
+      { key: 'acceptsDeposits', label: 'Whether the company has accepted deposits', input: { scope: 'filing', type: 'select', options: ['No', 'Yes'], default: 'No' } },
+      money('depositsOutstanding', 'Deposits outstanding (₹)', { show: () => c.formData.acceptsDeposits === 'Yes' }),
+    ] },
+  ],
+  attachments: (c) => [
+    ...(c.formData.acceptsDeposits === 'Yes' ? [{ name: 'Auditor’s certificate', why: 'Required when the return covers deposits' }, { name: 'List of depositors' }] : []),
+    { name: 'Copy of trust deed / instrument, if any', why: 'Only where applicable' },
+  ],
+};
+
+// ---- MSME-1 -----------------------------------------------------------------------------------------------------
+const msme1: FormSpec = {
+  form: 'MSME-1', title: 'Outstanding dues to micro and small enterprises',
+  note: 'Half-yearly. List each micro or small supplier unpaid for more than 45 days from acceptance of goods / services.',
+  parts: (c) => [
+    { title: 'Company', fields: company() },
+    { title: 'Return period', fields: [
+      { key: 'period', label: 'Return for the half-year', input: { scope: 'filing', type: 'select', options: ['April to September', 'October to March'], default: c.ob.dueDate.slice(5, 7) === '04' ? 'October to March' : 'April to September' } },
+      { key: 'fyOf', label: 'Financial year', value: (c) => fyLabel(c.ob.fy) },
+    ] },
+    { title: 'Dues', fields: [
+      { key: 'suppliers', label: 'Number of micro / small suppliers with dues over 45 days', input: { scope: 'filing', type: 'number' } },
+      money('amountDue', 'Amount due to them (₹)', { input: { scope: 'filing', type: 'number' } }),
+      { key: 'reason', label: 'Reason for delay in payment', input: { scope: 'filing' } },
+      { key: 'supplierList', label: 'Each supplier: name, PAN, amount due, date due (one per line)', input: { scope: 'filing' }, help: 'Entered supplier by supplier in the form.', optional: true },
+    ] },
+  ],
+  attachments: () => [],
+};
+
+// ---- CHG-1 / CHG-4 ----------------------------------------------------------------------------------------------
+const NATURE: Record<string, string> = { HYPOTHECATION: 'Hypothecation', MORTGAGE: 'Mortgage', PLEDGE: 'Pledge', LIEN: 'Lien', OTHER: 'Others' };
+/** The charge this filing is about: the one created, modified or satisfied on the event date. */
+const chargeOf = (c: FormCtx, kind: 'create' | 'satisfy') => (c.charges ?? []).find((x) => (kind === 'satisfy' ? x.satisfiedOn : (x.createdOn === c.ob.eventDate ? x.createdOn : x.modifiedOn)) === c.ob.eventDate) ?? null;
+const chg1: FormSpec = {
+  form: 'CHG-1', title: 'Creation / modification of charge',
+  note: 'Within 30 days of creation; up to 60 more days with additional fees. Record the charge in the client’s register of charges — the details below come from it.',
+  parts: (c) => {
+    const ch = chargeOf(c, 'create');
+    const modification = !!ch && ch.modifiedOn === c.ob.eventDate && ch.createdOn !== c.ob.eventDate;
+    return [
+      { title: 'Company', fields: company() },
+      { title: 'Charge', fields: [
+        { key: 'purpose', label: 'Form filed for', value: () => (ch ? (modification ? 'Modification of charge' : 'Creation of charge') : null), help: 'Add the charge to Registers → Charges.', fixAt: 'details' },
+        { key: 'chargeId', label: 'Charge ID (for a modification)', value: () => ch?.chargeId, show: () => modification },
+        { key: 'eventDate', label: modification ? 'Date of the instrument modifying the charge' : 'Date of the instrument creating the charge', value: (c) => fmt(c.ob.eventDate) },
+        { key: 'nature', label: 'Type of charge', value: () => (ch?.nature ? NATURE[ch.nature] ?? ch.nature : null) },
+        { key: 'holder', label: 'Name of the charge holder', aliases: ['Name of the charge-holder'], value: () => ch?.holder },
+        { key: 'holderAddress', label: 'Address of the charge holder', value: () => ch?.holderAddress },
+        { key: 'holderCategory', label: 'Category of charge holder', input: { scope: 'filing', type: 'select', options: ['Scheduled bank', 'Financial institution', 'NBFC', 'Others'], default: 'Scheduled bank' } },
+        { key: 'amount', label: 'Amount secured by the charge (₹)', value: () => num(ch?.amount) },
+        { key: 'property', label: 'Short particulars of the property charged', value: () => ch?.property },
+        { key: 'instrument', label: 'Brief description of the instrument', value: () => ch?.instrument, optional: true },
+        { key: 'terms', label: 'Rate of interest, repayment terms, margin', value: () => ch?.terms, optional: true },
+        { key: 'consortium', label: 'Whether consortium / multiple banking', input: { scope: 'filing', type: 'select', options: ['No', 'Yes'], default: 'No' } },
+        { key: 'modification', label: 'Particulars of the modification', value: () => ch?.modification, show: () => modification },
+      ] },
+    ];
+  },
+  attachments: () => [{ name: 'Instrument creating / modifying the charge (certified copy)' }, { name: 'Particulars of all modifications, if any', why: 'Only if the charge was modified' }],
+};
+const chg4: FormSpec = {
+  form: 'CHG-4', title: 'Satisfaction of charge',
+  note: 'Within 30 days of payment in full. The charge holder also signs the form with its DSC.',
+  parts: (c) => {
+    const ch = chargeOf(c, 'satisfy');
+    return [
+      { title: 'Company', fields: company() },
+      { title: 'Charge satisfied', fields: [
+        { key: 'chargeId', label: 'Charge ID', value: () => ch?.chargeId, help: 'From the register of charges (MCA index of charges).' },
+        { key: 'holder', label: 'Name of the charge holder', value: () => ch?.holder },
+        { key: 'createdOn', label: 'Date of creation of the charge', value: () => fmt(ch?.createdOn) },
+        { key: 'amount', label: 'Amount secured (₹)', value: () => num(ch?.amount) },
+        { key: 'satisfiedOn', label: 'Date of satisfaction', value: (c) => fmt(c.ob.eventDate) },
+        { key: 'full', label: 'Satisfied in full', input: { scope: 'filing', type: 'select', options: ['Yes', 'No — part'], default: 'Yes' } },
+      ] },
+    ];
+  },
+  attachments: () => [{ name: 'Letter / NOC from the charge holder confirming payment in full' }],
+};
+
+// ---- MGT-14 / SH-7 / INC-22: from the meeting that passed the resolution ---------------------------------------
+const MEETING: Record<string, string> = { BOARD: 'Board meeting', AGM: 'Annual general meeting', EGM: 'Extraordinary general meeting' };
+const RES: Record<string, string> = { BOARD: 'Board resolution', ORDINARY: 'Ordinary resolution', SPECIAL: 'Special resolution', NONE: '—' };
+const meetingFields = (): FieldSpec[] => [
+  { key: 'meetingType', label: 'Type of meeting', value: (c) => (c.fromMeeting ? MEETING[c.fromMeeting.type] : null), help: 'Filled when the resolution was passed in a meeting recorded in ComplyDesk.' },
+  { key: 'meetingDate', label: 'Date of passing the resolution', aliases: ['Date of meeting'], value: (c) => fmt(c.fromMeeting?.date ?? c.ob.eventDate) },
+];
+const mgt14: FormSpec = {
+  form: 'MGT-14', title: 'Filing of resolutions with the Registrar',
+  note: 'Special resolutions (and some board resolutions of public companies). Private companies are exempt from filing board resolutions under Sec 179(3).',
+  parts: (c) => {
+    const items = c.fromMeeting?.items ?? [];
+    return [
+      { title: 'Company', fields: company() },
+      { title: 'Resolution', fields: [
+        ...meetingFields(),
+        { key: 'resolutions', label: 'Number of resolutions', value: () => items.length || null, input: items.length ? undefined : { scope: 'filing', type: 'number', default: '1' } },
+        { key: 'resType', label: 'Type of resolution', value: () => (items[0] ? RES[items[0].resolutionType] : null) },
+        { key: 'subject', label: 'Subject matter of the resolution', value: () => items.map((i) => i.title).join('; ') || null },
+        { key: 'section', label: 'Section of the Act under which passed', input: { scope: 'filing' }, help: 'e.g. 14 (alteration of articles), 13 (MOA), 180, 186.' },
+      ] },
+    ];
+  },
+  attachments: (c) => [
+    { name: 'Certified true copy of each resolution', why: 'Print from the meeting: Certified true copy' },
+    ...(c.fromMeeting && c.fromMeeting.type !== 'BOARD' ? [{ name: 'Explanatory statement (Sec 102) and notice of the meeting' }] : []),
+    { name: 'Altered memorandum / articles, if altered' },
+  ],
+};
+const sh7: FormSpec = {
+  form: 'SH-7', title: 'Alteration of share capital',
+  note: 'Update the client’s authorised capital in Details after filing — the "after" figure comes from there.',
+  parts: (c) => [
+    { title: 'Company', fields: company() },
+    { title: 'Alteration', fields: [
+      ...meetingFields(),
+      { key: 'purpose', label: 'Purpose', input: { scope: 'filing', type: 'select', options: ['Increase in authorised capital', 'Consolidation / division', 'Conversion', 'Cancellation of unissued shares', 'Redemption of preference shares'], default: 'Increase in authorised capital' } },
+      money('authBefore', 'Authorised capital before the alteration (₹)', { input: { scope: 'filing', type: 'number' } }),
+      { key: 'authAfter', label: 'Authorised capital after the alteration (₹)', value: (c) => num(c.client.authorisedCapital), fixAt: 'details' },
+      { key: 'increase', label: 'Increase (₹)', value: (c) => (c.formData.authBefore && c.client.authorisedCapital ? num(Number(c.client.authorisedCapital) - Number(c.formData.authBefore)) : null) },
+      { key: 'faceValue', label: 'Nominal value per share (₹)', value: (c) => faceValue(c), fixAt: 'shareholders' },
+    ] },
+  ],
+  attachments: () => [{ name: 'Certified copy of the resolution' }, { name: 'Altered memorandum of association' }, { name: 'Altered articles of association, if applicable' }],
+};
+const inc22: FormSpec = {
+  form: 'INC-22', title: 'Situation of registered office / change',
+  note: 'Within 30 days of the change. Outside the city (same RoC) needs a special resolution and MGT-14 too.',
+  parts: () => [
+    { title: 'Company', fields: [...company().filter((f) => f.key !== 'regOffice')] },
+    { title: 'New registered office', fields: [
+      ...meetingFields(),
+      { key: 'purpose', label: 'Purpose', input: { scope: 'filing', type: 'select', options: ['Change within the local limits of the city', 'Change outside the local limits, within the same RoC', 'Change from one RoC to another (same state)'], default: 'Change within the local limits of the city' } },
+      { key: 'newAddress', label: 'Address of the new registered office', value: (c) => c.client.registeredOffice, fixAt: 'details', help: 'From the client’s Details — update it there first.' },
+      { key: 'effectiveFrom', label: 'With effect from', value: (c) => fmt(c.ob.eventDate) },
+      { key: 'ownership', label: 'Premises', input: { scope: 'filing', type: 'select', options: ['Owned by the company', 'Owned by a director (not taken on lease)', 'Taken on lease', 'Other'] } },
+      { key: 'policeStation', label: 'Jurisdictional police station', input: { scope: 'filing' } },
+      { key: 'geo', label: 'Latitude and longitude of the office', input: { scope: 'filing' }, help: 'Needed on V3 — a geo-tagged photo of the office is also attached.' },
+    ] },
+  ],
+  attachments: (c) => [
+    { name: 'Proof of registered office (conveyance / lease deed / rent agreement)' },
+    { name: 'Utility bill not older than two months' },
+    ...(c.formData.ownership && c.formData.ownership !== 'Owned by the company' ? [{ name: 'NOC from the owner of the premises' }] : []),
+    { name: 'Copy of the board / special resolution' },
+    { name: 'Geo-tagged photograph of the office' },
+  ],
+};
+
 /** Which pack a filing gets, by its rule code. */
 export const FORM_SPECS: Record<string, FormSpec> = {
   MGT7: annualReturn('MGT-7'), MGT7A: annualReturn('MGT-7A'), MGT7A_OPC: annualReturn('MGT-7A'),
   AOC4: aoc4, AOC4_OPC: aoc4, DIR12: dir12, ADT1: adt1, PAS3: pas3,
+  DPT3: dpt3, MSME1: msme1, CHG1: chg1, CHG4: chg4, MGT14: mgt14, SH7: sh7, INC22: inc22,
 };
 export const specFor = (ruleCode: string) => FORM_SPECS[ruleCode] ?? null;

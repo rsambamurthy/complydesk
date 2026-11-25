@@ -18,7 +18,12 @@ export interface FormCtx {
   years: { fy: number; agmDate: string | null }[];
   /** Meetings held during the filing's FY (from the Meetings module, or the calendar when not recorded there). */
   meetings: MeetingLite[];
+  /** Charges from the register of charges (CHG-1 / CHG-4). */
+  charges?: ChargeLite[];
+  /** The meeting and passed resolution(s) that created this filing (MGT-14, SH-7, INC-22), if it came from a meeting. */
+  fromMeeting?: { type: 'BOARD' | 'AGM' | 'EGM'; title: string; date: string; items: { title: string; resolutionType: string; text: string | null; explanatory: string | null }[] } | null;
 }
+export interface ChargeLite { chargeId: string | null; createdOn: string; modifiedOn: string | null; satisfiedOn: string | null; holder: string; holderAddress: string | null; amount: number | null; nature: string | null; property: string | null; instrument: string | null; terms: string | null; modification: string | null }
 
 export type Scope = 'client' | 'filing';
 export interface FieldSpec {

@@ -24,7 +24,7 @@ ext.bearer = made.token;
 const me = await ext.call('/ext/me');
 ok(me.user.name === 'Karthik S' && /Rao & Associates/.test(me.workspace), 'extension knows who it is');
 const list = await ext.call('/ext/filings?q=Kaveri');
-ok(list.length > 0 && list.every((f: any) => ['MGT-7', 'MGT-7A', 'AOC-4', 'DIR-12', 'ADT-1', 'PAS-3'].includes(f.form) && f.clientName.startsWith('Kaveri')), `filings with form data: ${list.map((f: any) => f.form).join(', ')}`);
+ok(list.length > 0 && list.every((f: any) => ['MGT-7', 'MGT-7A', 'AOC-4', 'DIR-12', 'ADT-1', 'PAS-3', 'DPT-3', 'MSME-1', 'CHG-1', 'CHG-4', 'MGT-14', 'SH-7', 'INC-22'].includes(f.form) && f.clientName.startsWith('Kaveri')), `filings with form data: ${list.map((f: any) => f.form).join(', ')}`);
 const pack = await ext.call(`/ext/filings/${list[0].id}/form`);
 ok(pack.parts[0].fields[0].aliases?.includes('CIN'), 'form data with portal aliases');
 await ext.call('/clients', { expect: 401 });

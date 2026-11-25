@@ -20,3 +20,17 @@ Tables (shareholders, directors & KMP at year end, changes in the year, meetings
 Not filled automatically (yet): uploading to MCA — V3 has no public filing API; a browser extension that fills the portal from the pack is the next step.
 
 Code: specs as data in `server/src/eforms/forms.ts`; pure builder `eforms/build.ts` (tested in `tests/eforms.test.ts`); `services/eforms.ts` (context, save inputs, Excel); routes `GET/PUT /api/obligations/:id/form`, `GET /api/obligations/:id/form.xlsx`; web `pages/FormPack.tsx`. Add a form = one spec in forms.ts + a test.
+
+
+## Packs added (Nov 2026)
+| Form | Comes from |
+|---|---|
+| DPT-3 | Paid-up capital from records; net worth, reserves and each category of money not treated as deposits typed per filing (total worked out); auditor's certificate asked only when deposits were accepted |
+| MSME-1 | Half-year from the due date; suppliers, amount due and reasons typed per filing |
+| CHG-1 | The register of charges entry created / modified on the event date (holder, amount, type, property, terms); creation vs modification worked out |
+| CHG-4 | The register of charges entry satisfied on the event date (charge ID, holder, amount) |
+| MGT-14 | The meeting and passed resolution(s) that created the filing (`FormCtx.fromMeeting`); section typed |
+| SH-7 | Meeting; authorised capital after from Details, before typed; increase worked out |
+| INC-22 | New address from Details, effective date, premises (NOC asked when not owned), police station, geo-location |
+
+`FormCtx` now carries `charges` (register of charges) and `fromMeeting` (the meeting item whose `createdObligationIds` holds the filing). Labels follow the forms as we know them — to be checked against MCA's current instruction kits by a practising CS.

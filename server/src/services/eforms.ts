@@ -2,7 +2,7 @@
  * MCA form data packs for a filing: gather the records, build the pack (eforms/build.ts + forms.ts),
  * save the values the records don't hold, and export the pack to Excel for the team.
  */
-import { and, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { db, schema, HttpError, notFound } from '../lib/core.js';
 import { todayIso, fyLabel } from '../compliance/dates.js';
@@ -37,11 +37,21 @@ async function contextFor(tenantId: string, obligationId: string) {
     meetings = cal.map((x) => ({ type: x.form === 'AGM' ? 'AGM' : 'BOARD', date: x.filedOn!, entitled: x.form === 'AGM' ? d.shareholders.length || null : directorsOn(x.filedOn!), present: null }));
   }
   meetings.sort((a, b) => a.date.localeCompare(b.date));
+  // Charges (register of charges) and the meeting whose resolution created this filing.
+  const charges = (await db.select().from(schema.registerEntries).where(and(eq(schema.registerEntries.clientId, ob.clientId), eq(schema.registerEntries.register, 'CHARGES'))))
+    .map((e) => { const x = e.data as Record<string, any>; return { chargeId: x.chargeId ?? null, createdOn: x.createdOn, modifiedOn: x.modifiedOn ?? null, satisfiedOn: x.satisfiedOn ?? null, holder: x.holder, holderAddress: x.holderAddress ?? null, amount: x.amount ?? null, nature: x.nature ?? null, property: x.property ?? null, instrument: x.instrument ?? null, terms: x.terms ?? null, modification: x.modification ?? null }; });
+  const [src] = await db.select({ i: schema.meetingItems, m }).from(schema.meetingItems).innerJoin(m, eq(m.id, schema.meetingItems.meetingId))
+    .where(and(eq(m.clientId, ob.clientId), sql`${schema.meetingItems.createdObligationIds} @> ${JSON.stringify([ob.id])}::jsonb`)).limit(1);
+  const fromMeeting = src ? {
+    type: src.m.type as 'BOARD' | 'AGM' | 'EGM', title: src.m.title, date: src.m.heldOn ?? src.m.date,
+    items: (await db.select().from(schema.meetingItems).where(and(eq(schema.meetingItems.meetingId, src.m.id), eq(schema.meetingItems.outcome, 'PASSED'))))
+      .filter((i) => i.filings.includes(ob.ruleCode)).map((i) => ({ title: i.title, resolutionType: i.resolutionType, text: i.text, explanatory: i.explanatory })),
+  } : null;
   const ctx: FormCtx = {
     today: todayIso(),
     client: d.client, profile: (d.client as any).profile ?? {}, formData: ob.formData ?? {},
     ob: { ruleCode: ob.ruleCode, form: ob.form, fy: ob.fy, dueDate: ob.dueDate, eventDate: ob.eventDate, personId: ob.personId },
-    people: d.people, shareholders: d.shareholders, auditors: d.auditors, years: d.years, meetings,
+    people: d.people, shareholders: d.shareholders, auditors: d.auditors, years: d.years, meetings, charges, fromMeeting,
   };
   return { ob, spec, ctx, clientId: d.client.id };
 }
