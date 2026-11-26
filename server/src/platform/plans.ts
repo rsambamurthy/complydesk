@@ -11,6 +11,7 @@ export interface Seller { legalName: string; gstin: string; address: string; sta
 /** Suggested launch pricing (per workspace per year, excluding GST). Client-portal users are free and not counted. */
 export const DEFAULT_PLANS: Plan[] = [
   { code: 'STARTER', name: 'Starter', clients: 25, users: 5, price: 12000, active: true, blurb: 'A small practice' },
+  { code: 'GROWTH', name: 'Growth', clients: 50, users: 10, price: 20000, active: true, blurb: 'A growing practice' },
   { code: 'PRACTICE', name: 'Practice', clients: 100, users: 20, price: 30000, active: true, blurb: 'Most CS firms' },
   { code: 'FIRM', name: 'Firm', clients: 300, users: 40, price: 75000, active: true, blurb: 'Larger firms' },
 ];

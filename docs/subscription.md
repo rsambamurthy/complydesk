@@ -1,7 +1,7 @@
 # Subscriptions (firms paying Integrata for ComplyDesk)
 
 ## Pieces
-- `server/src/platform/plans.ts` — pure: `Plan`, `Seller`, `DEFAULT_PLANS` (Starter 25 clients / 5 users ₹12,000; Practice 100 / 20 ₹30,000; Firm 300 / 40 ₹75,000 — per year, before GST), `quote()` (NEW / RENEW / UPGRADE / refused), `withGst()` (via `billing/calc.ts invoiceTotals`), `limitsFor()`, `RENEWAL_REMINDER_DAYS`. Tested in `tests/plans.test.ts`.
+- `server/src/platform/plans.ts` — pure: `Plan`, `Seller`, `DEFAULT_PLANS` (Starter 25 clients / 5 users ₹12,000; Growth 50 / 10 ₹20,000; Practice 100 / 20 ₹30,000; Firm 300 / 40 ₹75,000 — per year, before GST), `quote()` (NEW / RENEW / UPGRADE / refused), `withGst()` (via `billing/calc.ts invoiceTotals`), `limitsFor()`, `RENEWAL_REMINDER_DAYS`. Tested in `tests/plans.test.ts`.
 - `server/src/lib/razorpay.ts` — Orders API (`createOrder`), checkout signature `HMAC_SHA256(order_id|payment_id, key secret)`, webhook signature `HMAC_SHA256(raw body, webhook secret)`. `PAYMENTS_DRIVER=mock` makes orders/signatures locally.
 - `server/src/services/subscription.ts` — plans & seller (platform settings), usage and limits (`assertClientCapacity`, `assertUserCapacity`), `summary`, billing details, `startCheckout`, `confirmCheckout`, `handleWebhook`, `recordOffline`, `markPaid` (the only place a payment becomes real), `invoice` (same shape as a firm's own invoice so `web/src/pages/InvoicePrint.tsx` prints both), `runRenewalReminders` (daily 04:00 UTC in `jobs.ts`).
 - Table `subscription_payments` (CREATED → PAID; ONLINE / OFFLINE; invoice number unique), tenant columns `plan`, `billing_address`, `billing_state`; platform settings `plans`, `seller`.

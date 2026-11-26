@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { DEFAULT_PLANS, quote, withGst, yearEnd, limitsFor, daysBetween } from '../src/platform/plans.js';
 
-const [starter, practice, firm] = DEFAULT_PLANS;
+const [starter, growth, practice, firm] = DEFAULT_PLANS;
 const none = { plan: null, paidUntil: null, clients: 10, users: 3 };
 
 describe('plans: quote', () => {
@@ -36,6 +36,11 @@ describe('plans: quote', () => {
     expect(q).toMatchObject({ ok: false });
     expect((q as any).reason).toContain('40 client companies');
     expect(quote(firm, { ...none, users: 41 }, DEFAULT_PLANS, '2026-11-26').ok).toBe(false);
+  });
+  it('a 30-client firm can take Growth but not Starter', () => {
+    const cur = { ...none, clients: 30, users: 6 };
+    expect(quote(starter, cur, DEFAULT_PLANS, '2026-11-26').ok).toBe(false);
+    expect(quote(growth, cur, DEFAULT_PLANS, '2026-11-26')).toMatchObject({ ok: true, amount: 20000 });
   });
   it('a withdrawn plan is not sold', () => {
     expect(quote({ ...practice, active: false }, none, DEFAULT_PLANS, '2026-11-26').ok).toBe(false);
