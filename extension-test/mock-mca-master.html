@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- A stand-in for MCA "View Company/LLP Master Data" after the CIN and captcha (for the extension harness). Uses the seed's demo client CIN. -->
+<html><head><meta charset="utf-8"><title>Master Data Services V3</title>
+<style>body{font:14px system-ui;margin:24px} table{border-collapse:collapse;margin:12px 0} td,th{border:1px solid #ccc;padding:6px 10px;text-align:left}</style></head>
+<body>
+<p>Home &gt; MCA Services &gt; Master Data &gt; Master Data Services V3 &gt; Company/ LLP Search</p>
+<h2>Company Information</h2>
+<table id="info"><tbody>
+<tr><td>CIN</td><td>__CIN__</td></tr>
+<tr><td>Company Name</td><td>__NAME__</td></tr>
+<tr><td>ROC Name</td><td>ROC Chennai</td></tr>
+<tr><td>Registration Number</td><td>123456</td></tr>
+<tr><td>Date of Incorporation</td><td>12/06/2015</td></tr>
+<tr><td>Email Id</td><td>accounts@example.in</td></tr>
+<tr><td>Registered Address</td><td>12, Anna Salai, Chennai, Tamil Nadu, India, 600002</td></tr>
+<tr><td>Listed in Stock Exchange(s) (Y/N)</td><td>No</td></tr>
+<tr><td>Class of Company</td><td>Private</td></tr>
+<tr><td>Authorised Capital (Rs)</td><td>50,00,000</td></tr>
+<tr><td>Paid up Capital (Rs)</td><td>10,00,000</td></tr>
+<tr><td>Date of last AGM</td><td>30/09/2025</td></tr>
+<tr><td>Date of Balance Sheet</td><td>31/03/2025</td></tr>
+<tr><td>Company Status</td><td>Active</td></tr>
+</tbody></table>
+<h3>Director/Signatory details</h3>
+<table id="dirs"><thead><tr><th>DIN/PAN</th><th>Name</th><th>Designation</th><th>Date of Appointment</th><th>Cessation Date</th><th>Signatory</th></tr></thead>
+<tbody><tr><td>09876543</td><td>NEW PERSON</td><td>Additional Director</td><td>01/04/2025</td><td>-</td><td>Yes</td></tr></tbody></table>
+<h3>Index of Charges</h3>
+<table><thead><tr><th>Charge Id</th><th>Charge Holder Name</th><th>Date of Creation</th><th>Date of Modification</th><th>Date of Satisfaction</th><th>Amount</th></tr></thead>
+<tbody><tr><td>100567890</td><td>HDFC BANK LIMITED</td><td>15/02/2022</td><td>-</td><td>-</td><td>25,00,000</td></tr></tbody></table>
+<script>const p = new URLSearchParams(location.search); document.body.innerHTML = document.body.innerHTML.replace('__CIN__', p.get('cin') || 'U72900TN2015PTC123456').replace('__NAME__', p.get('name') || 'SUNRISE TECH PRIVATE LIMITED');</script>
+</body></html>

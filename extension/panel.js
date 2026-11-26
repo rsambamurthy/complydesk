@@ -1,14 +1,16 @@
 /**
  * ComplyDesk side panel: connect to ComplyDesk, pick a filing, find its fields on the MCA page, fill the ones you tick;
- * or read filing status (SRNs) from the portal's Application History and update ComplyDesk after you confirm.
+ * read filing status (SRNs) from the portal's Application History and update ComplyDesk after you confirm;
+ * or read MCA master data (company / director) and check it against ComplyDesk (you save it in ComplyDesk).
  * Talks to the page only through content.js (injected on demand). Never clicks, submits or signs on the portal.
  */
 import { matchFields } from './lib/match.js';
 import { readStatuses } from './lib/srn.js';
+import { readMasterData } from './lib/master.js';
 
 const $app = document.getElementById('app');
 const $who = document.getElementById('who');
-const state = { conn: null, filings: [], q: '', pack: null, page: [], matches: {}, tick: {}, results: {}, msg: null, busy: false, srn: null };
+const state = { conn: null, filings: [], q: '', pack: null, page: [], matches: {}, tick: {}, results: {}, msg: null, busy: false, srn: null, master: null };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmtDate = (d) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
 
@@ -134,6 +136,51 @@ function bindSrn() {
   document.querySelectorAll('[data-srn]').forEach((el) => el.addEventListener('change', () => { state.srn.tick[el.dataset.srn] = el.checked; render(); }));
 }
 
+// ---- MCA master data (company or director) -------------------------------------------------------------------
+async function readMaster() {
+  const res = await inPage(() => window.__cdx.page());
+  // The page and its frames: the master data may sit in a frame.
+  let data = null;
+  for (const r of res) { data = r.result ? readMasterData(r.result) : null; if (data) break; }
+  if (!data) {
+    state.master = null;
+    state.msg = { kind: 'warn', text: 'No master data on this page. On the portal open View Company/LLP Master Data (or View Director Master Data), enter the CIN or DIN and the captcha, then read again.' };
+    return;
+  }
+  const out = await api('/mca-master', data);
+  state.master = { data, out };
+  state.msg = null;
+}
+const openInComplyDesk = (path) => chrome.tabs.create({ url: `${state.conn.base}${path}` });
+function masterCard() {
+  const m = state.master;
+  const head = `<div class="card"><div class="row"><h2 class="grow">MCA master data</h2><button id="mdread" ${state.busy ? 'disabled' : ''}>Read this page</button></div>
+    <p class="muted small" style="margin:0">On the portal, open <b>View Company/LLP Master Data</b> or <b>View Director Master Data</b>, enter the CIN or DIN and the captcha, then press <b>Read this page</b>. You check and save the details in ComplyDesk.</p>`;
+  if (!m) return `${head}</div>`;
+  if (m.data.kind === 'COMPANY') {
+    const o = m.out;
+    return `${head}<div class="fld"><div class="lab"><b>${esc(o.name)}</b></div><div class="small mono">${esc(o.cin)}</div>
+      <div class="small">${o.directors} director${o.directors === 1 ? '' : 's'} / signatories · ${o.charges} charge${o.charges === 1 ? '' : 's'} on MCA</div>
+      ${o.notes.length ? `<ul class="small" style="margin:6px 0 0;padding-left:18px">${o.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '<div class="small ok">Nothing unusual against your records.</div>'}
+      <button class="primary" id="mdopen" style="margin-top:8px">${o.clientId ? `Review changes for ${esc(o.clientName)} in ComplyDesk` : 'Not a client yet — add it in ComplyDesk'}</button></div></div>`;
+  }
+  const o = m.out;
+  const issues = o.rows.filter((r) => r.issues.length).length + o.missingOnMca.length;
+  return `${head}<div class="fld"><div class="lab"><b>${esc(o.name ?? '')}</b> · DIN ${esc(o.din)}${o.dinStatus ? ` · ${esc(o.dinStatus)}` : ''}</div>
+    <div class="small ${issues ? 'bad' : 'ok'}">${issues ? `${issues} difference${issues === 1 ? '' : 's'} with your records` : 'Matches your records'}</div></div>
+    ${o.rows.map((r) => `<div class="fld"><div class="lab">${esc(r.name ?? r.cin)}</div><div class="small mono">${esc(r.cin)}</div>
+      <div class="small muted">${r.beginOn ? `From ${fmtDate(r.beginOn)}` : ''}${r.endOn ? ` to ${fmtDate(r.endOn)}` : ''}${r.clientId ? ' · your client' : ' · not your client'}</div>
+      ${r.issues.map((i) => `<div class="small bad">${esc(i)}</div>`).join('')}
+      ${r.clientId && r.issues.length ? `<button class="link" data-client="${r.clientId}">Open ${esc(r.clientName)}</button>` : ''}</div>`).join('')}
+    ${o.missingOnMca.map((x) => `<div class="fld"><div class="lab">${esc(x.clientName)}</div><div class="small bad">${esc(x.issue)}</div><button class="link" data-client="${x.clientId}">Open</button></div>`).join('')}
+  </div>`;
+}
+function bindMaster() {
+  on('#mdread', 'click', () => run(readMaster));
+  on('#mdopen', 'click', () => { const o = state.master.out; openInComplyDesk(o.clientId ? `/clients/${o.clientId}?mca=${o.id}` : `/clients?mca=${o.id}`); });
+  document.querySelectorAll('[data-client]').forEach((el) => el.addEventListener('click', () => openInComplyDesk(`/clients/${el.dataset.client}`)));
+}
+
 // ---- Rendering ----------------------------------------------------------------------------------------------
 function render() {
   $who.textContent = state.conn?.who ?? '';
@@ -153,8 +200,8 @@ function render() {
       <h2>Which filing are you entering?</h2>
       <div class="row"><input id="q" placeholder="Search company, CIN or form" value="${esc(state.q)}"><button id="go">Search</button></div>
       <div class="list" style="margin-top:8px">${state.filings.length ? state.filings.map((f) => `<button class="filing" data-id="${f.id}"><span><b>${esc(f.form)}</b> · ${esc(f.clientName)}</span><span class="muted small">${esc(f.periodLabel || `FY ${f.fy}-${String((f.fy + 1) % 100).padStart(2, '0')}`)} · due ${fmtDate(f.dueDate)}</span></button>`).join('') : '<p class="muted small">No open filings with MCA form data.</p>'}</div>
-      </div>${srnCard()}<p class="small"><button class="link" id="disc">Disconnect</button></p>`;
-    bindSrn();
+      </div>${srnCard()}${masterCard()}<p class="small"><button class="link" id="disc">Disconnect</button></p>`;
+    bindSrn(); bindMaster();
     const search = () => { state.q = val('#q'); run(loadFilings); };
     on('#go', 'click', search);
     on('#q', 'keydown', (e) => e.key === 'Enter' && search());

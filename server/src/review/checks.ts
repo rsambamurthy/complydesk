@@ -25,7 +25,7 @@ const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN'
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const isDirector = (d: string) => d.includes('DIRECTOR');
 const days = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
-const ANNUAL = ['MGT7', 'MGT7A', 'MGT7A_OPC', 'AOC4', 'AOC4_OPC'];
+const ANNUAL = ['MGT7', 'MGT7A', 'MGT7A_OPC', 'AOC4', 'AOC4_OPC', 'AOC4_XBRL'];
 const RETURNS = ['MGT7', 'MGT7A', 'MGT7A_OPC'];
 
 export function recordChecks(c: Ctx): Finding[] {

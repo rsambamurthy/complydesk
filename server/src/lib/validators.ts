@@ -17,7 +17,7 @@ export const PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
 export const COMPANY_TYPES = ['PRIVATE', 'OPC'] as const;
 export const DESIGNATIONS = ['DIRECTOR', 'MANAGING_DIRECTOR', 'WHOLE_TIME_DIRECTOR', 'NOMINEE_DIRECTOR', 'INDEPENDENT_DIRECTOR', 'CEO', 'CFO', 'CS'] as const;
 export const DESIGNATION_LABEL: Record<string, string> = { DIRECTOR: 'Director', MANAGING_DIRECTOR: 'Managing Director', WHOLE_TIME_DIRECTOR: 'Whole-time Director', NOMINEE_DIRECTOR: 'Nominee Director', INDEPENDENT_DIRECTOR: 'Independent Director', CEO: 'CEO', CFO: 'CFO', CS: 'Company Secretary' };
-export const FLAGS = { msmeDues: 'Owes MSME suppliers for more than 45 days (MSME-1)', depositsOrLoans: 'Has outstanding loans / money received (DPT-3)' } as const;
+export const FLAGS = { msmeDues: 'Owes MSME suppliers for more than 45 days (MSME-1)', depositsOrLoans: 'Has outstanding loans / money received (DPT-3)', xbrl: 'Files financial statements in XBRL (AOC-4 XBRL)' } as const;
 
 export const clientInput = z.object({
   cin: z.string().trim().toUpperCase().regex(CIN_RE, 'CIN should look like U72900TN2015PTC123456'),

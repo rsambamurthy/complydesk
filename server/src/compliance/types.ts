@@ -30,6 +30,8 @@ export interface Applies {
   small?: boolean;
   /** Client flags that must be on (e.g. msmeDues). */
   flags?: string[];
+  /** Client flags that must be off (e.g. xbrl: plain AOC-4 only when the company doesn't file in XBRL). */
+  notFlags?: string[];
   /** Facts the engine works out: AUDITOR_TERM_ENDS (current auditor's term ends at this FY's AGM), FIRST_FY (FY of incorporation). */
   conditions?: ('AUDITOR_TERM_ENDS' | 'FIRST_FY')[];
 }

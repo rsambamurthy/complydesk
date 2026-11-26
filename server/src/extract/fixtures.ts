@@ -72,6 +72,29 @@ export const FIXTURES: Record<DocType, Record<string, any>> = {
     documentKind: 'Audited financial statements', matchesExpected: true, unclear: [],
     data: { cin: KAVERI, fy: 2025, paidUpCapital: 1000000, turnover: 486500000, borrowings: 12500000, loansFromOthers: true, msmeDuesOver45Days: true, msmeDuesAmount: 845000 },
   },
+  FIN_STATEMENTS: {
+    documentKind: 'Audited balance sheet and statement of profit and loss', matchesExpected: true, unclear: ['profitLoss.otherExpenses.py'],
+    data: {
+      cin: KAVERI, fy: 2025, standard: 'AS', roundedTo: 1000, grossTurnover: null,
+      balanceSheet: {
+        shareCapital: { cy: 500000, py: 500000 }, reserves: { cy: 1200000, py: 975000 }, shareWarrants: { cy: null, py: null }, shareAppMoney: { cy: null, py: null },
+        ltBorrowings: { cy: 300000, py: 400000 }, deferredTaxLiab: { cy: null, py: null }, otherLtLiab: { cy: null, py: null }, ltProvisions: { cy: null, py: null },
+        stBorrowings: { cy: null, py: null }, tradePayables: { cy: 600000, py: 525000 }, otherCurLiab: { cy: 250000, py: 200000 }, stProvisions: { cy: 150000, py: 100000 },
+        totalEqLiab: { cy: 3000000, py: 2700000 },
+        ppe: { cy: 800000, py: 850000 }, intangibles: { cy: null, py: null }, cwip: { cy: null, py: null }, intangiblesDev: { cy: null, py: null }, ncInvestments: { cy: null, py: null },
+        deferredTaxAsset: { cy: null, py: null }, ltLoans: { cy: null, py: null }, otherNcAssets: { cy: null, py: null }, curInvestments: { cy: null, py: null }, inventories: { cy: null, py: null },
+        tradeReceivables: { cy: 1100000, py: 950000 }, cash: { cy: 700000, py: 600000 }, stLoans: { cy: null, py: null }, otherCurAssets: { cy: 400000, py: 300000 },
+        totalAssets: { cy: 3000000, py: 2700000 },
+      },
+      profitLoss: {
+        revenue: { cy: 9000000, py: 8000000 }, otherIncome: { cy: 100000, py: 50000 }, totalIncome: { cy: 9100000, py: 8050000 },
+        materials: { cy: null, py: null }, purchases: { cy: null, py: null }, inventoryChange: { cy: null, py: null }, employee: { cy: 5000000, py: 4500000 },
+        finance: { cy: 50000, py: 60000 }, depreciation: { cy: 150000, py: 140000 }, otherExpenses: { cy: 3600000, py: 3090000 },
+        totalExpenses: { cy: 8800000, py: 7780000 }, exceptional: { cy: null, py: null }, pbt: { cy: 300000, py: 270000 },
+        currentTax: { cy: 75000, py: 70000 }, deferredTax: { cy: null, py: null }, pat: { cy: 225000, py: 200000 },
+      },
+    },
+  },
   AUDITOR: {
     documentKind: 'Auditor consent letter', matchesExpected: true, unclear: [],
     data: { cin: KAVERI, firmName: 'Raman & Co., Chartered Accountants', frn: '004512S', appointedOn: '2025-09-26', termFromFy: 2025, termToFy: null },

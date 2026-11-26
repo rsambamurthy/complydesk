@@ -26,7 +26,7 @@ const admin = await login('admin@demo.in');
 const exec = await login('karthik@demo.in');
 
 const types = await admin.call('/extract/types');
-ok(types.enabled && types.types.length === 7, 'seven document kinds, reading switched on');
+ok(types.enabled && types.types.length === 8, 'eight document kinds, reading switched on');
 
 // 1. New client from MCA master data
 await admin.call('/extract', { body: form({ docType: 'MCA_MASTER' }, Buffer.from('hello'), 'x.txt', 'text/plain'), expect: 400 });

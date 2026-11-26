@@ -38,6 +38,7 @@ export const ruleInput = z.object({
     types: z.array(z.enum(COMPANY_TYPES)).optional(),
     small: z.boolean().optional(),
     flags: z.array(z.enum(Object.keys(FLAGS) as [string, ...string[]])).optional(),
+    notFlags: z.array(z.enum(Object.keys(FLAGS) as [string, ...string[]])).optional(),
     conditions: z.array(z.enum(['AUDITOR_TERM_ENDS', 'FIRST_FY'])).optional(),
   }).default({}),
   due: dueInput,

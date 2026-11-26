@@ -6,7 +6,8 @@ import { h, audit, HttpError } from '../lib/core.js';
 import { requirePerm, assertClientVisible } from '../auth/session.js';
 import { parse } from '../lib/parse.js';
 import { DOC_TYPES, isDocType } from '../extract/doctypes.js';
-import { applyDsc, applyRead, attachRead, dailyLimit, docTypeList, extractEnabled, readDscFiles, readUpload } from '../services/extract.js';
+import { BALANCE_SHEET, PROFIT_LOSS, checkStatements } from '../financials/statements.js';
+import { applyDsc, applyRead, attachRead, dailyLimit, docTypeList, extractEnabled, openRead, paidUpFor, readDscFiles, readUpload } from '../services/extract.js';
 
 export const extractRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 20 } });
@@ -38,6 +39,23 @@ extractRouter.post('/dsc/apply', requirePerm('clients.manage'), h(async (req, re
   assertClientVisible(req, body.clientId);
   const out = await applyDsc(req.staff!.tenant.id, body.clientId, body.updates);
   await audit(req, 'people.dsc', 'client', body.clientId, { updated: out.updated });
+  res.json(out);
+}));
+
+// Financial statements on an AOC-4 filing: the line layout, and the checks again after a person edits the figures.
+extractRouter.get('/statement-lines', h(async (_req, res) => res.json({ groups: [...BALANCE_SHEET, ...PROFIT_LOSS] })));
+extractRouter.post('/statement-check', requirePerm('compliance.work'), h(async (req, res) => {
+  const body = parse(z.object({ obligationId: z.string(), roundedTo: z.number().optional(), figures: z.record(z.object({ cy: z.any(), py: z.any() })) }), req.body);
+  const paidUp = await paidUpFor(req.staff!.tenant.id, body.obligationId);
+  assertClientVisible(req, paidUp.clientId);
+  const num = (v: unknown) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(String(v).replace(/,/g, ''))) ? null : Math.round(Number(String(v).replace(/,/g, ''))));
+  const figures = Object.fromEntries(Object.entries(body.figures).map(([k, x]) => [k, { cy: num(x.cy), py: num(x.py) }]));
+  res.json({ issues: checkStatements(figures, { roundedTo: body.roundedTo, paidUpOnRecord: paidUp.amount }) });
+}));
+
+extractRouter.get('/:id', h(async (req, res) => {
+  const out = await openRead(req.staff!, req.params.id);
+  if (out.clientId) assertClientVisible(req, out.clientId);
   res.json(out);
 }));
 

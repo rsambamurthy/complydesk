@@ -102,6 +102,9 @@ export function EventModal({ clientId, meta, people, onClose, onSaved }: { clien
   );
 }
 
+/** Filings that carry the financial statements (AOC-4, AOC-4 for OPCs, AOC-4 XBRL). */
+const AOC4_CODES = ['AOC4', 'AOC4_OPC', 'AOC4_XBRL'];
+
 // ---- Filing workflow dialog -----------------------------------------------------------------------------------
 interface Move { action: string; label: string; note: 'required' | 'optional' | null; needsFiling: boolean; danger: boolean; blocked: string | null; override: number | null }
 interface FilingDetail {
@@ -127,6 +130,7 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
   const clientUser = !!me?.user.clientIds.length;
   const docs = useReading();
   const [challan, setChallan] = useState(false);
+  const [statements, setStatements] = useState(false);
   const [filesKey, setFilesKey] = useState(0);
   if (error) return <Modal title={o.form} onClose={onClose}><Alert kind="error">{error}</Alert></Modal>;
   if (!data) return <Modal title={o.form} onClose={onClose}><Spinner /></Modal>;
@@ -201,7 +205,9 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
       {!clientUser && (can('compliance.work') || can('compliance.approve')) && data.formPack && ob.stage !== 'NA' && (
         <div className="card pad" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span><strong>MCA form data</strong><span className="muted small block">Every field of the {ob.form} form, filled from the records — copy into the V3 portal, or download as Excel.</span></span>
-          <span className="grow" /><Link className="btn btn-sm btn-primary" to={`/filings/${o.id}/form`} onClick={onClose}>Open {ob.form} form data</Link>
+          <span className="grow" />
+          {AOC4_CODES.includes(ob.ruleCode) && docs?.enabled && can('compliance.work') && meta && <button className="btn btn-sm btn-secondary" onClick={() => setStatements(true)}>Read the financial statements</button>}
+          <Link className="btn btn-sm btn-primary" to={`/filings/${o.id}/form`} onClick={onClose}>Open {ob.form} form data</Link>
         </div>
       )}
       {!clientUser && (can('compliance.work') || can('compliance.approve')) && ob.stage !== 'NA' && (
@@ -216,6 +222,8 @@ function FilingModal({ o, meta, onClose, onSaved }: { o: Obligation; meta?: Meta
       )}
 
       <h4 style={{ margin: '14px 0 6px' }}>Documents</h4>
+      {statements && meta && <ReadDocument kinds={['FIN_STATEMENTS']} obligationId={o.id} meta={meta} title={`Financial statements for ${ob.form}`}
+        onClose={() => setStatements(false)} onDone={() => { setFilesKey((k) => k + 1); reload(); }} />}
       {challan && meta && <ReadDocument kinds={['SRN_CHALLAN']} obligationId={o.id} meta={meta} title="Read the challan"
         onClose={() => setChallan(false)} onDone={(r) => { if (r.srn) setSrn(r.srn); if (r.filedOn) setFiledOn(r.filedOn); setFilesKey((k) => k + 1); }} />}
       <Attachments key={filesKey} onChange={() => setFilesKey((k) => k + 1)} entity="obligation" entityId={o.id} canAdd={can('compliance.work') || can('compliance.client_approve')} canRemove={can('compliance.work') && !clientUser} />

@@ -113,7 +113,7 @@ Each client company's record drives its compliance calendar: change a record and
 | Way                  | Where                                  | Best for                                                                                             |
 |----------------------|----------------------------------------|------------------------------------------------------------------------------------------------------|
 | Add client           | Clients → **Add client**               | One company, typed in                                                                                |
-| From MCA master data | Clients → **Add from MCA master data** | Upload the master data page (PDF / screenshot); company and directors are filled in for you to check |
+| From MCA master data | Clients → **Add from MCA master data**, or the Chrome extension on the MCA page | Upload the master data page (PDF / screenshot), or read it straight from the portal with the extension; company and directors are filled in for you to check |
 | Excel import         | Clients → **Import from Excel**        | Many companies at once — download the template, fill it, upload                                      |
 
 The CIN must match the company type (PTC for private, OPC for one person companies). A CIN can be added only once.
@@ -311,6 +311,7 @@ Upload a PDF or a photo / screenshot; ComplyDesk reads it, shows the values in a
 | Audited financial statements        | client → **Read a document**                                         | Paid-up capital, small company (≤ ₹10 crore paid-up and ≤ ₹100 crore turnover), MSME-1 / DPT-3 ticks |
 | Auditor consent letter / ADT-1      | client → **Read a document**                                         | New current auditor (old one kept as former)                                                         |
 | MCA challan / SRN acknowledgment    | filing → **Uploaded on MCA** → **Read the SRN and date from it**     | SRN and filed date; kept on the filing                                                               |
+| Signed financial statements          | AOC-4 filing → **Read the financial statements**                     | Balance sheet and P&L lines, this year and last, into the AOC-4 form data — with the totals checked  |
 | Board / general meeting papers      | client → Compliance → **Find filings in board papers**               | Event filings with due dates; adds new directors, marks resigned ones ceased                         |
 | DSC certificate files (.cer)        | client → Directors → **Read DSC files**                              | DSC expiry, matched to directors — read directly, no AI                                              |
 
@@ -391,6 +392,34 @@ Fill a form:
 *The ComplyDesk panel (right) after Fill: filled fields outlined in green. The form on the left is a stand-in for the MCA portal page.*
 
 A connection code can only read form data of the clients you can see. Disconnect a browser on the MCA form filler page when you no longer use it.
+
+### Financial statements for AOC-4
+
+On an AOC-4 (or AOC-4 XBRL) filing, press **Read the financial statements** and upload the signed balance sheet and statement of profit and loss.
+
+1. ComplyDesk reads every Schedule III line, for this year and the previous year, into rupees (it notes when the statements are in lakhs or thousands).
+2. It then checks the arithmetic itself: each section adds up to its total, total assets equal total equity and liabilities, total income less total expenses gives profit before tax, and tax gives profit for the year. Share capital is compared with the paid-up capital on file. Differences within rounding are not flagged.
+3. Lines that don't add up are shown in red, values to look at in amber. Correct a figure and the checks run again.
+4. **Save to the filing** puts the figures into the AOC-4 form data (Part B), ready for the form filler.
+
+If the figures show the company must file in XBRL (paid-up capital ₹5 crore or more, turnover ₹100 crore or more, Ind AS, a listed company's subsidiary, or filed in XBRL before), you're told, and can mark the client as filing in XBRL as you save.
+
+### AOC-4 XBRL
+
+Tick **Files financial statements in XBRL** on a client (Edit details) and the calendar shows **AOC-4 XBRL** in place of AOC-4. Its form data has the same figures plus an **XBRL working paper** (every line, this year and last) to copy into your XBRL tool. ComplyDesk does not make the XBRL instance document itself yet: prepare it in your XBRL tool and validate it with MCA's XBRL validation tool before attaching it.
+
+### MCA master data from the portal
+
+Instead of saving the master data page as a PDF:
+
+1. On the MCA portal open **View Company/LLP Master Data**, enter the CIN and the captcha.
+2. In the ComplyDesk panel, under **MCA master data**, press **Read this page**.
+3. The panel shows the company, its directors and charges, and anything that differs from your records — a director in office here but not on MCA's list, a cessation on MCA not recorded here, an open charge missing from your register of charges, a company status other than Active.
+4. Press **Review changes** (or **Add it**, for a company that isn't a client yet). ComplyDesk opens with the same review screen as an uploaded document: tick the changes and new directors to save.
+
+On **View Director Master Data** (a DIN), the panel lists the director's companies as MCA shows them against your records: appointed or ceased on MCA but not here, different dates, or in office here but not on MCA. Nothing is changed from a director page.
+
+Reading a page doesn't count towards the daily limit for AI reads.
 
 ### Filing status from the MCA portal
 

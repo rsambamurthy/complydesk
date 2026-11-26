@@ -15,7 +15,7 @@ export interface Rule {
   event: string | null; notes: string | null; effectiveFrom: string | null; effectiveTo: string | null; active: boolean;
   source?: string; updatedBy?: string | null; updatedAt?: string;
 }
-interface Applies { types?: string[]; small?: boolean; flags?: string[]; conditions?: string[] }
+interface Applies { types?: string[]; small?: boolean; flags?: string[]; notFlags?: string[]; conditions?: string[] }
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fd = (d: FixedDate) => `${d.day} ${MONTHS[d.month - 1]}${d.yearOffset ? ' (after FY)' : ''}`;
@@ -44,6 +44,7 @@ export function appliesText(r: Pick<Rule, 'applies' | 'frequency' | 'event'>, fl
   if (a.small === true) parts.push('small companies');
   if (a.small === false) parts.push('not small companies');
   if (a.flags?.length) parts.push(`only when: ${a.flags.map((f) => flags[f] ?? f).join(', ')}`);
+  if (a.notFlags?.length) parts.push(`not when: ${a.notFlags.map((f) => flags[f] ?? f).join(', ')}`);
   for (const c of a.conditions ?? []) parts.push(CONDITION[c] ?? c);
   if (r.frequency === 'PER_DIRECTOR') parts.push('each director');
   return parts.join(' · ') || 'All companies';
@@ -164,6 +165,9 @@ export function RuleEditor({ rule, endpoint, flags, isNew, base, resetLabel, rea
               <fieldset className="field field-wide" style={{ border: 0, padding: 0, margin: 0 }}><legend>Only when the client has</legend>
                 {Object.entries(flags).map(([k, l]) => <Check key={k} label={l} checked={!!r.applies.flags?.includes(k)} on={(v) => setA({ flags: toggle(r.applies.flags, k, v) })} />)}
                 {Object.entries(CONDITION).map(([k, l]) => <Check key={k} label={l[0].toUpperCase() + l.slice(1)} checked={!!r.applies.conditions?.includes(k)} on={(v) => setA({ conditions: toggle(r.applies.conditions, k, v) })} />)}
+              </fieldset>
+              <fieldset className="field field-wide" style={{ border: 0, padding: 0, margin: 0 }}><legend>Not when the client has</legend>
+                {Object.entries(flags).map(([k, l]) => <Check key={k} label={l} checked={!!r.applies.notFlags?.includes(k)} on={(v) => setA({ notFlags: toggle(r.applies.notFlags, k, v) })} />)}
               </fieldset>
             </div>
           </>}

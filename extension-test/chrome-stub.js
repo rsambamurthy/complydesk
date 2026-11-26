@@ -9,7 +9,7 @@
       remove: async (k) => { delete store[k]; localStorage.setItem('cdx-test', JSON.stringify(store)); },
     } },
     permissions: { request: async () => true },
-    tabs: { query: async () => [{ id: 1, url: 'https://www.mca.gov.in/mca/form/MGT-7' }] },
+    tabs: { query: async () => [{ id: 1, url: 'https://www.mca.gov.in/mca/form/MGT-7' }], create: async ({ url }) => { window.__opened = url; return { id: 2 }; } },
     scripting: { executeScript: async ({ files, func, args = [] }) => {
       const w = left();
       if (files) { if (!w.__cdx) { const s = w.document.createElement('script'); s.src = '/extension/content.js'; await new Promise((r) => { s.onload = r; w.document.head.appendChild(s); }); } return [{ frameId: 0 }]; }

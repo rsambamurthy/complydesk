@@ -16,7 +16,7 @@ import { useSession } from '../lib/session';
 import { ClientUsers } from '../components/ClientUsers';
 import { ClientMeetings } from './Meetings';
 import { Attachments } from '../components/Attachments';
-import { DscReader, ReadDocument, useReading } from '../components/DocumentReader';
+import { DscReader, ReadDocument, usePortalRead, useReading } from '../components/DocumentReader';
 
 interface Detail { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[]; summary: Summary; rules: { code: string; form: string; title: string; applies: boolean }[] }
 
@@ -32,6 +32,7 @@ export function ClientDetail() {
   const [dsc, setDsc] = useState(false);
   const [docsKey, setDocsKey] = useState(0);
   const docs = useReading();
+  const [portal, portalErr, closePortal] = usePortalRead();
   const { can } = useSession();
   if (error) return <div className="page"><Alert kind="error">{error}</Alert></div>;
   if (!data || !meta) return <Spinner />;
@@ -104,6 +105,8 @@ export function ClientDetail() {
       </section>
       {reading && <ReadDocument kinds={reading === 'papers' ? ['BOARD_PAPERS'] : ['BOARD_PAPERS', 'MGT7', 'FINANCIALS', 'AUDITOR', 'MCA_MASTER', 'INCORPORATION']} title={reading === 'papers' ? 'Find filings in board papers' : undefined} clientId={c.id} existing={data} meta={meta}
         onClose={() => setReading(false)} onDone={() => { reload(); setDocsKey((k) => k + 1); }} />}
+      {portalErr && <Alert kind="error">{portalErr}</Alert>}
+      {portal && <ReadDocument kinds={['MCA_MASTER']} initial={portal} clientId={c.id} existing={data} meta={meta} title="Update from MCA master data" onClose={closePortal} onDone={() => { reload(); setDocsKey((k) => k + 1); }} />}
       {dsc && <DscReader clientId={c.id} people={data.people} onClose={() => setDsc(false)} onDone={reload} />}
       {editing && <RecordModal title="Edit client" fields={clientFields(meta)} initial={clientToForm(c)}
         onSave={async (v) => { await api(`/clients/${c.id}`, { method: 'PATCH', body: formToClient(v) }); reload(); }} onClose={() => setEditing(false)} />}

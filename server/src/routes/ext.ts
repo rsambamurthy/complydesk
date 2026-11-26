@@ -1,6 +1,6 @@
 /**
  * The browser extension's API (Bearer token): who am I, filings with MCA form data, a filing's form data — all read-only —
- * and one write: filing status read from the MCA portal (approved / resubmission), confirmed by the user in the panel,
+ * a document read of MCA master data (reviewed and saved in ComplyDesk), and one write: filing status read from the MCA portal (approved / resubmission), confirmed by the user in the panel,
  * applied through the filing workflow like any other step.
  * Token management for the signed-in user lives at /api/auth/extension-tokens; the extension download at /api/extension.zip.
  */
@@ -18,6 +18,7 @@ import { clientScope, assertClientVisible, requireStaff } from '../auth/session.
 import { FORM_SPECS } from '../eforms/forms.js';
 import { formPack } from '../services/eforms.js';
 import { getObligation } from '../services/obligations.js';
+import { companyPage, directorPage, readCompanyPage, readDirectorPage } from '../services/mcaMaster.js';
 
 const { obligations: o, clients: c, apiTokens: k } = schema;
 export const extRouter = Router();
@@ -74,6 +75,21 @@ extRouter.post('/srn-status', h(async (req, res) => {
     } catch (e: any) { results.push({ obligationId: u.obligationId, ok: false, error: e.message }); }
   }
   res.json({ results, updated: results.filter((r) => r.ok).length });
+}));
+
+/**
+ * MCA master data the user has open on the portal (company or director page), read by the extension.
+ * Company → a document read to review and save in ComplyDesk (nothing changes until then); director → a comparison.
+ */
+extRouter.post('/mca-master', h(async (req, res) => {
+  const kind = req.body?.kind;
+  if (kind === 'COMPANY') {
+    const out = await readCompanyPage(req.staff!, clientScope(req), parse(companyPage, req.body));
+    await audit(req, 'document.read', 'extraction', out.id, { docType: 'MCA_MASTER', source: 'mca-portal', cin: out.cin });
+    return res.status(201).json(out);
+  }
+  if (kind === 'DIRECTOR') return res.json(await readDirectorPage(req.staff!, clientScope(req), parse(directorPage, req.body)));
+  throw new HttpError(400, 'This isn’t an MCA master data page');
 }));
 
 // ---- For the signed-in user (cookie session) -----------------------------------------------------------------

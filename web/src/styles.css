@@ -1073,3 +1073,8 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .time-log { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; }
 .time-add { display: grid; grid-template-columns: 140px 120px 1fr auto; gap: 6px; } @media (max-width: 640px) { .time-add { grid-template-columns: 1fr 1fr; } }
 .time-row { display: flex; gap: 4px; align-items: center; padding: 2px 0; } .time-row button { margin-inline-start: auto; }
+/* Financial statements review: lines that don't add up / worth a look */
+.fs-bad { background: var(--err-bg, #fdecec); color: var(--err); font-weight: 600; }
+.fs-look { background: #fffbeb; }
+.fs-input { text-align: right; width: 100%; padding: 4px 8px; height: 30px; font-variant-numeric: tabular-nums; }
+.table.compact td:has(.fs-input) { padding-top: 3px; padding-bottom: 3px; }

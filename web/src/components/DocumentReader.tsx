@@ -3,7 +3,8 @@
  * then it is saved through the normal APIs (services/extract.ts). One component for every entry point:
  * Clients (new client), a client's page (update), a filing (challan), and DSC files (read directly, no AI).
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
 import { useLoad } from '../lib/hooks';
 import type { Auditor, Client, Meta, Person, Shareholder, Year } from '../lib/types';
@@ -13,9 +14,9 @@ import { Fields, useRecordForm } from './RecordForm';
 import { auditorFields, clientFields, clientToForm, formToClient } from './ClientForms';
 import { DropZone } from './DropZone';
 
-export type DocKind = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR' | 'BOARD_PAPERS';
+export type DocKind = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'FIN_STATEMENTS' | 'AUDITOR' | 'BOARD_PAPERS';
 interface Types { enabled: boolean; types: { key: DocKind; label: string; hint: string }[] }
-interface Read { id: string; docType: DocKind; fileName: string; values: any; check: Record<string, string>; warnings: string[] }
+export interface Read { id: string; docType: DocKind; fileName: string; values: any; check: Record<string, string>; warnings: string[] }
 export interface Existing { client: Client; people: Person[]; shareholders: Shareholder[]; auditors: Auditor[]; years: Year[] }
 
 /** Whether reading documents is switched on for this deployment (an AI key is set). */
@@ -25,13 +26,32 @@ export const useReading = () => useLoad<Types>('/extract/types').data;
 const under = (m: Record<string, string> | undefined, prefix: string) =>
   Object.fromEntries(Object.entries(m ?? {}).filter(([k]) => k.startsWith(`${prefix}.`)).map(([k, v]) => [k.slice(prefix.length + 1), v]));
 
-export function ReadDocument({ kinds, clientId, obligationId, existing, meta, title, onClose, onDone }: {
+/**
+ * MCA master data sent by the browser extension arrives as `?mca=<read id>` on the Clients page or the client's page:
+ * loads that read so ReadDocument opens straight on the review. Returns the read (or undefined) and a way to close it.
+ */
+export function usePortalRead(): [Read | undefined, string | undefined, () => void] {
+  const [params, setParams] = useSearchParams();
+  const id = params.get('mca');
+  const [read, setRead] = useState<Read>();
+  const [err, setErr] = useState<string>();
+  useEffect(() => {
+    if (!id) { setRead(undefined); return; }
+    api<Read>(`/extract/${id}`).then(setRead, (e) => setErr(e.message));
+  }, [id]);
+  const clear = () => { params.delete('mca'); setParams(params, { replace: true }); setRead(undefined); setErr(undefined); };
+  return [read, err, clear];
+}
+
+export function ReadDocument({ kinds, clientId, obligationId, existing, meta, title, initial, onClose, onDone }: {
   kinds: DocKind[]; clientId?: string; obligationId?: string; existing?: Existing; meta: Meta; title?: string;
+  /** Already read (e.g. MCA master data from the extension): open on the review. */
+  initial?: Read;
   onClose: () => void; onDone: (out: any) => void;
 }) {
   const types = useReading();
-  const [kind, setKind] = useState<DocKind>(kinds[0]);
-  const [read, setRead] = useState<Read>();
+  const [kind, setKind] = useState<DocKind>(initial?.docType ?? kinds[0]);
+  const [read, setRead] = useState<Read | undefined>(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
   const def = types?.types.find((t) => t.key === kind);
@@ -59,12 +79,14 @@ export function ReadDocument({ kinds, clientId, obligationId, existing, meta, ti
       ) : (
         <div className="stack" style={{ gap: 12 }}>
           <p className="muted small" style={{ margin: 0 }}>Read from <strong>{read.fileName}</strong>. Values to check are <span className="field-check" style={{ background: '#fffbeb', border: '1px solid #e0a100', borderRadius: 4, padding: '0 4px' }}>highlighted</span>.</p>
+          {read.values.portal && <p className="small" style={{ margin: 0 }}>On MCA: status <strong>{read.values.portal.status ?? '—'}</strong> · last AGM {fmtDate(read.values.portal.lastAgm)} · balance sheet {fmtDate(read.values.portal.balanceSheetDate)} · {read.values.portal.charges.length} charge{read.values.portal.charges.length === 1 ? '' : 's'} listed</p>}
           {read.warnings.map((w) => <Alert key={w} kind="warning">{w}</Alert>)}
           {(read.docType === 'MCA_MASTER' || read.docType === 'INCORPORATION') && <CompanyReview read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'BOARD_PAPERS' && existing && <BoardPapersReview read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'MGT7' && existing && <Mgt7Review read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'FINANCIALS' && existing && <FinancialsReview read={read} existing={existing} meta={meta} onDone={done} onCancel={onClose} />}
           {read.docType === 'AUDITOR' && existing && <AuditorReview read={read} existing={existing} onDone={done} onCancel={onClose} />}
+          {read.docType === 'FIN_STATEMENTS' && obligationId && <StatementsReview read={read} obligationId={obligationId} onDone={done} onCancel={onClose} />}
           {read.docType === 'SRN_CHALLAN' && obligationId && <ChallanReview read={read} obligationId={obligationId} onDone={done} onCancel={onClose} />}
         </div>
       )}
@@ -173,7 +195,8 @@ function CompanyReview({ read, existing, meta, onDone, onCancel }: { read: Read;
   const [rows, setRows] = useState<Row[]>(peopleRows(read.values.directors, existing?.people));
   const s = useSave(onDone);
   const c = existing?.client;
-  const items: Change[] = c ? COMPANY_FIELDS.filter(([k]) => read.values.client[k] && String(read.values.client[k]) !== String((c as any)[k] ?? '').replace(/\.0+$/, ''))
+  const same = (a: unknown, b: unknown) => String(a ?? '').replace(/\.0+$/, '').toLowerCase().replace(/[^a-z0-9@]+/g, '') === String(b ?? '').replace(/\.0+$/, '').toLowerCase().replace(/[^a-z0-9@]+/g, '');
+  const items: Change[] = c ? COMPANY_FIELDS.filter(([k]) => read.values.client[k] && !same(read.values.client[k], (c as any)[k]))
     .map(([k, label, show]) => ({ key: k, label, was: (c as any)[k] ? show((c as any)[k]) : null, now: show(read.values.client[k]), value: read.values.client[k], why: read.check[`client.${k}`] })) : [];
   const [on, setOn] = useState<Record<string, boolean>>(Object.fromEntries(items.map((i) => [i.key, true])));
   const directors = <>
@@ -268,6 +291,48 @@ function AuditorReview({ read, existing, onDone, onCancel }: { read: Read; exist
       {current && form.values.current && <p className="muted small" style={{ margin: 0 }}>{current.firmName} will be kept as the former auditor.</p>}
       <Actions busy={s.busy} error={s.error} label="Add auditor" onCancel={onCancel}
         onSave={() => s.save(() => api(`/extract/${read.id}/apply`, { body: { clientId: existing.client.id, auditor: form.values } }))} />
+    </>
+  );
+}
+
+/** The Schedule III lines (as the server checks them), current and previous year, editable; the checks re-run as you type. */
+interface StatementLines { groups: { title: string; lines: { key: string; label: string; total?: boolean; signed?: boolean }[] }[] }
+function StatementsReview({ read, obligationId, onDone, onCancel }: { read: Read; obligationId: string; onDone: (o: any) => void; onCancel: () => void }) {
+  const v = read.values;
+  const layout = useLoad<StatementLines>('/extract/statement-lines').data;
+  const [fig, setFig] = useState<Record<string, { cy: string; py: string }>>(() => Object.fromEntries(Object.entries(v.figures as Record<string, { cy: number | null; py: number | null }>).map(([k, x]) => [k, { cy: x.cy === null ? '' : x.cy.toLocaleString('en-IN'), py: x.py === null ? '' : x.py.toLocaleString('en-IN') }])));
+  const [issues, setIssues] = useState<{ level: 'fix' | 'look'; text: string; keys: string[] }[]>(v.issues);
+  const [xbrl, setXbrl] = useState<boolean>(!!v.xbrl?.required);
+  const s = useSave(onDone);
+  const recheck = async (next: typeof fig) => { try { setIssues((await api<{ issues: typeof issues }>('/extract/statement-check', { body: { figures: next, roundedTo: v.roundedTo, obligationId } })).issues); } catch { /* keep the last result */ } };
+  const set = (k: string, y: 'cy' | 'py', val: string) => setFig((f) => ({ ...f, [k]: { ...f[k], [y]: val } }));
+  const bad = new Set(issues.filter((i) => i.level === 'fix').flatMap((i) => i.keys));
+  const look = new Set([...issues.filter((i) => i.level === 'look').flatMap((i) => i.keys), ...Object.keys(read.check).filter((k) => k.startsWith('fs.')).map((k) => k.slice(3))]);
+  const fixes = issues.filter((i) => i.level === 'fix').length;
+  return (
+    <>
+      <p className="small" style={{ margin: 0 }}>{v.fy ? `${fyLabel(v.fy)} · ` : ''}{v.standard === 'IND_AS' ? 'Ind AS' : 'Schedule III Division I'} · amounts in rupees{v.roundedTo > 1 ? ` (statements rounded to ₹${num(v.roundedTo)})` : ''}</p>
+      {issues.length > 0 && <div className="stack" style={{ gap: 6 }}>{issues.map((i) => <Alert key={i.text} kind={i.level === 'fix' ? 'error' : 'warning'}>{i.text}</Alert>)}</div>}
+      {!issues.length && <Alert kind="success">The statements add up: totals, balance sheet and profit all agree.</Alert>}
+      {!layout ? <Spinner /> : layout.groups.map((g) => (
+        <div key={g.title}>
+          <h4 style={{ margin: '6px 0 4px' }}>{g.title}</h4>
+          <div className="table-wrap"><table className="table compact">
+            <thead><tr><th>Line</th><th className="num" style={{ width: 160 }}>Current year (₹)</th><th className="num" style={{ width: 160 }}>Previous year (₹)</th></tr></thead>
+            <tbody>{g.lines.map((l) => (
+              <tr key={l.key} className={l.total ? 'strong' : ''}>
+                <td className={bad.has(l.key) ? 'fs-bad' : look.has(l.key) ? 'fs-look' : ''}>{l.total ? <strong>{l.label}</strong> : l.label}</td>
+                {(['cy', 'py'] as const).map((y) => <td key={y} className="num"><input inputMode="numeric" className="fs-input" aria-label={`${l.label} ${y === 'cy' ? 'current' : 'previous'} year`}
+                  value={fig[l.key]?.[y] ?? ''} onChange={(e) => set(l.key, y, e.target.value)} onBlur={() => recheck(fig)} /></td>)}
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </div>
+      ))}
+      {v.xbrl && <label className="check-row" style={{ marginTop: 6 }}><input type="checkbox" checked={xbrl} onChange={(e) => setXbrl(e.target.checked)} />
+        <span>The company files in XBRL (AOC-4 XBRL){v.xbrl.required ? <span className="muted small block">Required: {v.xbrl.reasons.join('; ')}.</span> : <span className="muted small block">Not required by the figures — tick only if listed / a listed company’s subsidiary, Ind AS, or filed in XBRL before.</span>}</span></label>}
+      <Actions busy={s.busy} error={s.error} label={fixes ? `Save anyway (${fixes} to fix)` : 'Save to the filing'} onCancel={onCancel}
+        onSave={() => s.save(() => api(`/extract/${read.id}/apply`, { body: { obligationId, figures: fig, filesXbrl: xbrl } }))} />
     </>
   );
 }

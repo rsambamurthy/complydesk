@@ -33,3 +33,6 @@ Every change is recorded in `rule_history` (who, when, before, after) and shown 
 - Items already filed or held keep their dates when rules change; untouched items the rules no longer produce are hidden; items someone worked on stay.
 
 The engine is `server/src/compliance/engine.ts` (pure, unit-tested in `server/tests/engine.test.ts`).
+
+## Not when a flag is set
+`applies.notFlags`: the rule applies only when none of these client flags are on. AOC-4 has `notFlags: ['xbrl']` and AOC-4 XBRL (`AOC4_XBRL`) has `flags: ['xbrl']`, so ticking *Files financial statements in XBRL* on a client swaps one for the other (the old filing is marked stale unless work started).

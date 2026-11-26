@@ -5,6 +5,7 @@
  */
 import type { FieldSpec, FormCtx, FormSpec, PartSpec, Person } from './build.js';
 import { agmLastDate, firstFy, fyLabel } from '../compliance/dates.js';
+import { BALANCE_SHEET, PROFIT_LOSS, ALL_LINES, fsKey, figuresFromFormData, netWorth } from '../financials/statements.js';
 
 const fmt = (d: string | null | undefined) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) : null);
 const num = (n: number | string | null | undefined) => (n === null || n === undefined || n === '' ? null : Number(n).toLocaleString('en-IN'));
@@ -123,6 +124,22 @@ const annualReturn = (form: 'MGT-7' | 'MGT-7A'): FormSpec => ({
 });
 
 // ---- AOC-4 ------------------------------------------------------------------------------------------------------
+/** Part B: Schedule III lines, current and previous year (read from the signed statements, or typed). Lines left blank are "nil". */
+const statementParts = (): PartSpec[] => [...BALANCE_SHEET, ...PROFIT_LOSS].map((g) => ({
+  title: `Part B — ${g.title.toLowerCase()} (₹, current year / previous year)`,
+  fields: g.lines.flatMap((l): FieldSpec[] => (['cy', 'py'] as const).map((y) => ({
+    key: fsKey(l.key, y), label: `${l.label} — ${y === 'cy' ? 'current year' : 'previous year'}`, aliases: [l.label],
+    input: { scope: 'filing', type: 'number' }, optional: !l.total && !['shareCapital', 'reserves', 'revenue', 'pbt', 'pat'].includes(l.key), help: l.help,
+  }))),
+}));
+/** Net worth, turnover, profit: from the statement lines (older filings: the figures typed before lines existed). */
+const keyFigures = (c: FormCtx) => {
+  const f = figuresFromFormData(c.formData);
+  const has = ALL_LINES.some((l) => f[l.key].cy !== null);
+  return has ? { netWorth: netWorth(f), turnover: f.revenue.cy ?? 0, pbt: f.pbt.cy ?? 0 }
+    : { netWorth: Number(c.formData.netWorth ?? 0), turnover: Number(c.formData.turnover ?? 0), pbt: Number(c.formData.pbt ?? 0) };
+};
+
 const aoc4: FormSpec = {
   form: 'AOC-4', title: 'Financial statements',
   parts: (c) => {
@@ -141,17 +158,12 @@ const aoc4: FormSpec = {
         { key: 'audPan', label: 'PAN of the auditor / firm', input: { scope: 'filing' } },
         { key: 'audMembership', label: 'Membership number of the signing partner', input: { scope: 'filing' } },
       ] },
-      { title: 'Part B — key figures (from the signed financial statements)', fields: [
-        { key: 'paidAmt', label: 'Share capital (₹)', value: (c) => num(c.client.paidUpCapital), fixAt: 'details' },
-        { key: 'netWorth', label: 'Net worth (₹)', input: { scope: 'filing', type: 'number' } },
-        { key: 'turnover', label: 'Revenue from operations (₹)', input: { scope: 'filing', type: 'number' } },
-        { key: 'pbt', label: 'Profit / (loss) before tax (₹)', input: { scope: 'filing', type: 'number' } },
-        { key: 'borrowings', label: 'Borrowings (₹)', input: { scope: 'filing', type: 'number', default: '0' } },
-      ] },
+      ...statementParts(),
     ];
   },
   attachments: (c) => {
-    const csr = Number(c.formData.netWorth ?? 0) >= 500_00_00_000 || Number(c.formData.turnover ?? 0) >= 1000_00_00_000 || Number(c.formData.pbt ?? 0) >= 5_00_00_000;
+    const k = keyFigures(c);
+    const csr = k.netWorth >= 500_00_00_000 || k.turnover >= 1000_00_00_000 || k.pbt >= 5_00_00_000;
     return [
       { name: 'Financial statements (balance sheet, P&L, cash flow, notes)' },
       { name: 'Board’s report with annexures' },
@@ -161,6 +173,25 @@ const aoc4: FormSpec = {
       ...(csr ? [{ name: 'CSR report annexure', why: 'Net worth ≥ ₹500 cr, turnover ≥ ₹1,000 cr or net profit ≥ ₹5 cr (s.135)' }] : []),
     ];
   },
+};
+
+/** AOC-4 XBRL: the same data; the financial statements go as an XBRL instance document made with an XBRL tool. */
+const aoc4Xbrl: FormSpec = {
+  form: 'AOC-4 XBRL', title: 'Financial statements in XBRL',
+  note: 'The balance sheet and P&L are filed as an XBRL instance document: prepare it in an XBRL tool from the figures below (Excel: XBRL working paper), validate it with MCA’s XBRL validation tool, then attach it to the form.',
+  parts: (c) => [
+    ...aoc4.parts(c),
+    { title: 'XBRL working paper', tables: [{
+      key: 'xbrlWorking', title: 'Schedule III figures for the XBRL tool', columns: ['Statement', 'Line item', 'Current year (₹)', 'Previous year (₹)'],
+      rows: (c) => { const f = figuresFromFormData(c.formData); return [...BALANCE_SHEET, ...PROFIT_LOSS].flatMap((g) => g.lines.map((l) => [g.title, l.label, f[l.key].cy, f[l.key].py])); },
+      empty: 'Read or type the financial statements first.',
+    }] },
+  ],
+  attachments: (c) => [
+    { name: 'XBRL instance document (validated with MCA’s XBRL validation tool)' },
+    { name: 'Human-readable PDF of the XBRL document (from the validation tool)' },
+    ...aoc4.attachments(c).filter((a) => !a.name.startsWith('Financial statements')),
+  ],
 };
 
 // ---- DIR-12 -----------------------------------------------------------------------------------------------------
@@ -435,7 +466,7 @@ const inc22: FormSpec = {
 /** Which pack a filing gets, by its rule code. */
 export const FORM_SPECS: Record<string, FormSpec> = {
   MGT7: annualReturn('MGT-7'), MGT7A: annualReturn('MGT-7A'), MGT7A_OPC: annualReturn('MGT-7A'),
-  AOC4: aoc4, AOC4_OPC: aoc4, DIR12: dir12, ADT1: adt1, PAS3: pas3,
+  AOC4: aoc4, AOC4_OPC: aoc4, AOC4_XBRL: aoc4Xbrl, DIR12: dir12, ADT1: adt1, PAS3: pas3,
   DPT3: dpt3, MSME1: msme1, CHG1: chg1, CHG4: chg4, MGT14: mgt14, SH7: sh7, INC22: inc22,
 };
 export const specFor = (ruleCode: string) => FORM_SPECS[ruleCode] ?? null;

@@ -33,6 +33,7 @@ export function applies(rule: RuleDef, input: Omit<EngineInput, 'rules' | 'peopl
   if (a.types?.length && !a.types.includes(client.companyType)) return false;
   if (a.small !== undefined && a.small !== client.smallCompany) return false;
   if (a.flags?.some((f) => !client.flags?.[f])) return false;
+  if (a.notFlags?.some((f) => client.flags?.[f])) return false;
   for (const c of a.conditions ?? []) {
     if (c === 'FIRST_FY' && firstFy(client.incorporationDate) !== fy) return false;
     if (c === 'AUDITOR_TERM_ENDS' && input.auditorTermToFy !== fy) return false;

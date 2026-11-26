@@ -8,13 +8,14 @@ import { Alert, Empty, Spinner } from '../components/ui';
 import { RecordModal } from '../components/RecordForm';
 import { clientFields, formToClient } from '../components/ClientForms';
 import { useSession } from '../lib/session';
-import { ReadDocument, useReading } from '../components/DocumentReader';
+import { ReadDocument, usePortalRead, useReading } from '../components/DocumentReader';
 
 export function Clients() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const [reading, setReading] = useState(false);
   const docs = useReading();
+  const [portal, portalErr, closePortal] = usePortalRead();
   const { data, error, reload } = useLoad<Client[]>(`/clients?q=${encodeURIComponent(q)}`);
   const meta = useMeta();
   const nav = useNavigate();
@@ -30,6 +31,7 @@ export function Clients() {
         </div>}
       </div>
       {error && <Alert kind="error">{error}</Alert>}
+      {portalErr && <Alert kind="error">{portalErr}</Alert>}
       <section className="card">
         <div className="toolbar"><input className="search" placeholder="Search by name or CIN" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         {!data ? <Spinner /> : data.length === 0 ? <Empty>No clients yet. Add one, read it from the MCA master data, or import a list from Excel.</Empty> : (
@@ -49,6 +51,7 @@ export function Clients() {
         )}
       </section>
       {reading && meta && <ReadDocument kinds={['MCA_MASTER', 'INCORPORATION']} meta={meta} title="Add a client from a document" onClose={() => setReading(false)} onDone={(o) => { reload(); nav(`/clients/${o.clientId}`); }} />}
+      {portal && meta && <ReadDocument kinds={['MCA_MASTER']} initial={portal} meta={meta} title="Add a client from MCA master data" onClose={closePortal} onDone={(o) => { reload(); nav(`/clients/${o.clientId}`); }} />}
       {adding && meta && (
         <RecordModal title="Add client" fields={clientFields(meta)} saveLabel="Add client"
           initial={{ companyType: 'PRIVATE', smallCompany: false }}

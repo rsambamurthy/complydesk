@@ -4,10 +4,13 @@
  */
 import { CIN_RE, DIN_RE, PAN_RE, DESIGNATIONS, clientInput, personInput, shareholderInput, auditorInput } from '../lib/validators.js';
 import type { DocType } from './doctypes.js';
+import { ALL_LINES, checkStatements, xbrlRequired, type Figures } from '../financials/statements.js';
 
 type Any = Record<string, any>;
 export interface Context {
-  clientCin?: string | null; obligationForm?: string | null;
+  clientCin?: string | null; obligationForm?: string | null; obligationFy?: number | null;
+  /** For financial statements: paid-up capital on file, and whether the client already files in XBRL. */
+  paidUpOnRecord?: number | null; filesXbrl?: boolean;
   /** For board papers: the workspace's event filings, the client's people and what's already on its calendar. */
   eventRules?: EventRuleLite[]; people?: PersonLite[]; existing?: ExistingOb[];
 }
@@ -102,7 +105,7 @@ function cinCheck(cin: string | null, ctx: Context, warnings: string[]) {
 
 /** The model names fields as in its schema ("company.cin", "firmName"); the screens use "client.cin", "auditor.firmName". */
 function unclearPath(docType: DocType, path: string) {
-  const p = path.replace(/^data\./, '').replace(/^company\./, 'client.');
+  const p = path.replace(/^data\./, '').replace(/^company\./, 'client.').replace(/^(balanceSheet|profitLoss)\.(\w+)(\.(cy|py))?$/, 'fs.$2');
   return docType === 'AUDITOR' && !p.startsWith('auditor.') ? `auditor.${p}` : p;
 }
 
@@ -156,6 +159,27 @@ export function normalise(docType: DocType, raw: Any, ctx: Context = {}): Read {
           smallCompany: small, smallReason, flags: { msmeDues: d.msmeDuesOver45Days === true, depositsOrLoans: d.loansFromOthers === true } },
         check, warnings,
       };
+    }
+    case 'FIN_STATEMENTS': {
+      const signed = (v: unknown) => { if (v === null || v === undefined || v === '') return null; const x = typeof v === 'number' ? v : Number(String(v).replace(/[₹,\s]/g, '').replace(/^\((.*)\)$/, '-$1')); return Number.isFinite(x) ? Math.round(x) : null; };
+      const figures: Figures = Object.fromEntries(ALL_LINES.map((l) => {
+        const src = (d.balanceSheet ?? {})[l.key] ?? (d.profitLoss ?? {})[l.key] ?? {};
+        return [l.key, { cy: signed(src.cy), py: signed(src.py) }];
+      }));
+      const roundedTo = [1, 10, 100, 1000, 10000, 100000, 1000000].includes(Number(d.roundedTo)) ? Number(d.roundedTo) : 1;
+      const standard = /ind/i.test(String(d.standard ?? '')) ? 'IND_AS' : 'AS';
+      const cin = upper(d.cin);
+      cinCheck(cin, ctx, warnings);
+      const fy = fyOf(d.fy);
+      if (fy && ctx.obligationFy && fy !== ctx.obligationFy) warnings.push(`These statements are for FY ${fy}-${String((fy + 1) % 100).padStart(2, '0')}, not the filing’s FY ${ctx.obligationFy}-${String((ctx.obligationFy + 1) % 100).padStart(2, '0')}.`);
+      const issues = checkStatements(figures, { roundedTo, paidUpOnRecord: ctx.paidUpOnRecord ?? null });
+      for (const i of issues) for (const k of i.keys) check[`fs.${k}`] ??= i.text;
+      const turnover = signed(d.grossTurnover) ?? figures.revenue.cy;
+      const xbrl = xbrlRequired({ paidUp: figures.shareCapital.cy ?? ctx.paidUpOnRecord, turnover, indAs: standard === 'IND_AS', filedXbrlBefore: ctx.filesXbrl });
+      const xbrlForm = /xbrl/i.test(ctx.obligationForm ?? '');
+      if (xbrl.required && !xbrlForm) warnings.push(`This company must file in XBRL (${xbrl.reasons.join('; ')}) — AOC-4 XBRL, not AOC-4. Mark the client as filing in XBRL when you save.`);
+      if (standard === 'IND_AS') warnings.push('Ind AS statements (Division II): the lines below follow Division I — check how items were placed.');
+      return { values: { cin, fy, standard, roundedTo, figures, issues, xbrl }, check, warnings };
     }
     case 'DRAFT_FORM': {
       const dirs = (Array.isArray(d.directors) ? d.directors : []).filter((x: Any) => clean(x?.name) || clean(x?.din))

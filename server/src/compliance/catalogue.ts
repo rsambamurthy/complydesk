@@ -52,9 +52,16 @@ export const CATALOGUE: RuleDef[] = [
   // ---- Annual filings -------------------------------------------------------------------------------------
   {
     code: 'AOC4', form: 'AOC-4', title: 'Financial statements', law: 'Sec 137', frequency: 'ANNUAL',
-    applies: { types: ['PRIVATE'] },
+    applies: { types: ['PRIVATE'], notFlags: ['xbrl'] },
     due: { kind: 'AFTER_ANCHOR', anchor: 'AGM', days: 30, fallback: 'AGM_LAST_DATE' },
     lateFee: PER_DAY_100,
+  },
+  {
+    code: 'AOC4_XBRL', form: 'AOC-4 XBRL', title: 'Financial statements in XBRL', law: 'Sec 137; XBRL Rules 2015', frequency: 'ANNUAL',
+    applies: { types: ['PRIVATE'], flags: ['xbrl'] },
+    due: { kind: 'AFTER_ANCHOR', anchor: 'AGM', days: 30, fallback: 'AGM_LAST_DATE' },
+    lateFee: PER_DAY_100,
+    notes: 'Listed companies and their Indian subsidiaries; paid-up capital ≥ ₹5 crore; turnover ≥ ₹100 crore; Ind AS companies; and any company that filed in XBRL before. The XBRL instance document is made with an XBRL tool and checked with MCA’s validation tool.',
   },
   {
     code: 'AOC4_OPC', form: 'AOC-4', title: 'Financial statements (OPC)', law: 'Sec 137 proviso', frequency: 'ANNUAL',

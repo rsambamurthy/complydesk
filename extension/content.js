@@ -102,5 +102,19 @@
     return out;
   }
 
-  window.__cdx = { scan, fill, fillFocused, flash, labelFor, rows };
+  /** The page as text lines and tables (header + rows of cell text) — for reading master data. Read only. */
+  function page() {
+    const lines = (document.body?.innerText ?? '').split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 3000);
+    const cells = (row) => [...row.querySelectorAll(':scope > th, :scope > td, :scope > [role=cell], :scope > [role=columnheader], :scope > [role=gridcell], :scope > mat-cell, :scope > mat-header-cell')].map((c) => text(c));
+    const tables = [];
+    document.querySelectorAll('table, [role=table], [role=grid], mat-table').forEach((t) => {
+      const rws = [...t.querySelectorAll('tr, [role=row], mat-row, mat-header-row')].filter((r) => r.closest('table, [role=table], [role=grid], mat-table') === t);
+      const all = rws.map(cells).filter((r) => r.length);
+      if (all.length < 2) return;
+      tables.push({ headers: all[0], rows: all.slice(1, 501) });
+    });
+    return { lines, tables };
+  }
+
+  window.__cdx = { scan, fill, fillFocused, flash, labelFor, rows, page };
 })();

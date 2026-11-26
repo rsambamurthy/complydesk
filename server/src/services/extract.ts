@@ -16,15 +16,20 @@ import { READABLE, readDocument, readCertificate, readerName } from '../extract/
 import { getClient, createClient, updateClient, peopleSvc, shareholdersSvc, auditorsSvc, setYear } from './clients.js';
 import { syncClient, rulesFor } from '../compliance/sync.js';
 import { addEvent } from './obligations.js';
+import { saveInputs } from './eforms.js';
+import { ALL_LINES, fsKey } from '../financials/statements.js';
+
+/** Filings that carry financial statements. */
+export const AOC4_CODES = ['AOC4', 'AOC4_OPC', 'AOC4_XBRL'];
 
 const { extractions: x, attachments, obligations, people, shareholders, auditors } = schema;
 export const dailyLimit = () => Number(process.env.EXTRACT_DAILY_LIMIT) || 200;
 export const extractEnabled = () => readerName() !== null;
 
-/** Documents read per workspace per day (AI calls cost money). Shared by reading and the reviewer check. */
+/** Documents read per workspace per day (AI calls cost money). Shared by reading and the reviewer check. Pages read from the MCA portal by the extension don't count. */
 export async function assertDailyLimit(tenantId: string) {
   const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(x).where(and(eq(x.tenantId, tenantId), gte(x.createdAt, today)));
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(x).where(and(eq(x.tenantId, tenantId), gte(x.createdAt, today), sql`coalesce(${x.model}, '') <> 'mca-portal'`));
   if (n >= dailyLimit()) throw new HttpError(429, `Your workspace has read ${n} documents today — the daily limit. Try again tomorrow.`);
 }
 
@@ -34,7 +39,7 @@ async function contextFor(tenantId: string, clientId?: string | null, obligation
     const [o] = await db.select().from(obligations).where(and(eq(obligations.id, obligationId), eq(obligations.tenantId, tenantId)));
     if (!o) throw notFound('Filing not found');
     const c = await getClient(tenantId, o.clientId);
-    return { clientId: c.id, obligationId: o.id, ctx: { clientCin: c.cin, obligationForm: o.form } };
+    return { clientId: c.id, obligationId: o.id, ctx: { clientCin: c.cin, obligationForm: o.form, obligationFy: o.fy, paidUpOnRecord: c.paidUpCapital === null ? null : Number(c.paidUpCapital), filesXbrl: !!c.flags?.xbrl } as Context };
   }
   if (clientId) { const c = await getClient(tenantId, clientId); return { clientId: c.id, obligationId: null, ctx: { clientCin: c.cin } }; }
   return { clientId: null, obligationId: null, ctx: {} };
@@ -78,6 +83,19 @@ async function eventContext(tenantId: string, clientId: string) {
   const ppl = await db.select({ id: people.id, name: people.name, din: people.din, designation: people.designation, ceasedOn: people.ceasedOn }).from(people).where(eq(people.clientId, clientId));
   const existing = await db.select({ ruleCode: obligations.ruleCode, eventDate: obligations.eventDate, personId: obligations.personId }).from(obligations).where(and(eq(obligations.clientId, clientId), isNotNull(obligations.eventDate)));
   return { eventRules, people: ppl, existing };
+}
+
+/** Paid-up capital on file for the client of a filing (the statements' share capital is checked against it). */
+export async function paidUpFor(tenantId: string, obligationId: string) {
+  const { clientId, ctx } = await contextFor(tenantId, null, obligationId);
+  return { clientId: clientId!, amount: (ctx as Context).paidUpOnRecord ?? null };
+}
+
+/** A read waiting to be checked (e.g. MCA master data sent by the extension), for the review screen. */
+export async function openRead(staff: StaffCtx, id: string) {
+  const row = await getRead(staff.tenant.id, id);
+  if (!staff.permissions.has(DOC_TYPES[row.docType as DocType].perm)) throw new HttpError(403, 'You don’t have permission to do this');
+  return { id: row.id, docType: row.docType, fileName: row.fileName, clientId: row.clientId, ...(row.result as object) };
 }
 
 async function getRead(tenantId: string, id: string) {
@@ -220,6 +238,29 @@ export async function applyRead(staff: StaffCtx, id: string, body: Record<string
       await syncClient(tenantId, clientId);
       await attachTo(staff, row, 'client', clientId, clientId, 'APPLIED');
       return { clientId, added, skipped, peopleAdded, peopleCeased };
+    }
+    case 'FIN_STATEMENTS': {
+      // The figures go on the AOC-4 filing (its form data), through the form pack like typed values.
+      const obligationId: string | null = body.obligationId ?? row.obligationId;
+      if (!obligationId) throw new HttpError(400, 'Open the AOC-4 filing, then read its financial statements');
+      const [ob] = await db.select().from(obligations).where(and(eq(obligations.id, obligationId), eq(obligations.tenantId, tenantId)));
+      if (!ob || !AOC4_CODES.includes(ob.ruleCode)) throw new HttpError(400, 'Financial statements go on an AOC-4 filing');
+      const values: Record<string, string> = {};
+      for (const l of ALL_LINES) for (const y of ['cy', 'py'] as const) {
+        const v = body.figures?.[l.key]?.[y];
+        if (v === null || v === undefined || v === '') { values[fsKey(l.key, y)] = ''; continue; }
+        const x = Number(String(v).replace(/,/g, ''));
+        if (!Number.isFinite(x)) { errs[`fs.${l.key}`] = 'Enter a number'; continue; }
+        values[fsKey(l.key, y)] = String(Math.round(x));
+      }
+      fail(errs);
+      await saveInputs(tenantId, ob.id, values);
+      if (body.filesXbrl === true) {
+        const c = await getClient(tenantId, ob.clientId);
+        if (!c.flags?.xbrl) await updateClient(tenantId, c.id, { flags: { ...c.flags, xbrl: true } });
+      }
+      await attachTo(staff, row, 'obligation', ob.id, ob.clientId, 'APPLIED');
+      return { clientId: ob.clientId, obligationId: ob.id };
     }
     case 'SRN_CHALLAN':
       throw new HttpError(400, 'A challan is attached to its filing, not applied');

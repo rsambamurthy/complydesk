@@ -2,7 +2,9 @@
  * The documents ComplyDesk can read, as data: what to ask the model for (a JSON schema the model must fill in)
  * and how to turn its answer into the app's own field shapes. Adding a document = adding an entry here.
  */
-export type DocType = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'AUDITOR' | 'BOARD_PAPERS' | 'DRAFT_FORM';
+import { BALANCE_SHEET, PROFIT_LOSS } from '../financials/statements.js';
+
+export type DocType = 'MCA_MASTER' | 'INCORPORATION' | 'SRN_CHALLAN' | 'MGT7' | 'FINANCIALS' | 'FIN_STATEMENTS' | 'AUDITOR' | 'BOARD_PAPERS' | 'DRAFT_FORM';
 
 type Schema = Record<string, unknown>;
 const s = (description: string): Schema => ({ type: ['string', 'null'], description });
@@ -31,6 +33,10 @@ const director = obj({
   appointedOn: s(`Date of appointment ${DATE}`),
   ceasedOn: s(`Date of cessation ${DATE}, null if still in office`),
 });
+
+/** Each Schedule III line as { cy, py } in rupees — the line list is the one the checks use (financials/statements.ts). */
+const yearPair = (label: string): Schema => obj({ cy: n(`${label}, current year, ${MONEY}`), py: n(`${label}, previous year, ${MONEY}`) });
+const lines = (groups: typeof BALANCE_SHEET) => obj(Object.fromEntries(groups.flatMap((g) => g.lines).map((l) => [l.key, yearPair(l.label)])));
 
 export interface DocDef {
   label: string;
@@ -152,6 +158,26 @@ export const DOC_TYPES: Record<DocType, DocDef> = {
       loansFromOthers: b('true if the company has outstanding loans or money received from anyone other than banks (e.g. directors, relatives, other companies) — relevant to DPT-3'),
       msmeDuesOver45Days: b('true if amounts are due to micro or small enterprises beyond 45 days (MSMED Act disclosure)'),
       msmeDuesAmount: n(`Amount due to micro and small enterprises ${MONEY}`),
+    }),
+  },
+  FIN_STATEMENTS: {
+    label: 'Signed financial statements (for AOC-4)',
+    hint: 'Balance sheet and statement of profit and loss as signed, with the previous year column.',
+    perm: 'compliance.work',
+    guide: [
+      'These are the audited financial statements of an Indian company (Schedule III). Read the balance sheet and the statement of profit and loss into the lines given, for the current year and the previous year columns.',
+      'Convert every amount to whole rupees: watch the "₹ in lakhs / thousands / crores" heading. roundedTo is the smallest amount the statements show, in rupees (1 for rupees, 1000 for lakhs with two decimals, 100000 for crores with two decimals, 1000 for thousands).',
+      'Put each item under the Schedule III line it belongs to; if the statements show a sub-total (e.g. "Shareholders’ funds") do not add it as a line. Use the totals exactly as printed for totalEqLiab, totalAssets, totalIncome, totalExpenses, pbt and pat — do not compute them.',
+      'Amounts shown in brackets are negative. Write null for lines the statements do not have. If the statements are Ind AS (Division II), set standard to IND_AS and map to the nearest line.',
+    ].join(' '),
+    schema: obj({
+      cin: s('CIN, if shown'),
+      fy: n('Start year of the financial year, e.g. 2025 for the year ended 31 March 2026'),
+      standard: s('AS for Schedule III Division I (Accounting Standards), IND_AS for Division II'),
+      roundedTo: n('The smallest amount shown, in rupees (see guidance)'),
+      grossTurnover: n(`Gross turnover including duties and taxes, if stated, ${MONEY}`),
+      balanceSheet: lines(BALANCE_SHEET),
+      profitLoss: lines(PROFIT_LOSS),
     }),
   },
   AUDITOR: {

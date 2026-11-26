@@ -29,3 +29,11 @@ Next: publish on the Chrome Web Store (so firms install with one click instead o
 - `content.js` `rows()` returns visible rows (tr, role=row, li, cards) that contain an SRN — read only.
 - API: `GET /api/ext/filed` (stage FILED with an SRN) and the extension's one write, `POST /api/ext/srn-status` (compliance.work; SRN must match the filing; applied through `services/workflow.move` — `approved`, or `resubmit` for resubmission / rejection — with a note saying it was read from the portal; audit `obligation.mca_status`). CORS for the extension allows GET and POST.
 - Harness: `extension-test/mock-mca-history.html?rows=SRN|FORM|STATUS,…` with `harness.html?mca=…`.
+
+## MCA master data from the portal
+
+- Pure `extension/lib/master.js` (tested in `server/tests/master.test.ts`): `readMasterData({ lines, tables })` reads View Company/LLP Master Data (company label/value pairs — tab, colon, next-line or same-line; directors table DIN/PAN; index of charges) or View Director Master Data (DIN, companies with begin / end dates). Labels are matched after normalising; the first occurrence wins.
+- `content.js` `page()` returns the page's visible text lines and its tables (table, role=table/grid, mat-table) — read only.
+- API: `POST /api/ext/mca-master` (`services/mcaMaster.ts`). Company page → matched to a client by CIN; stored as an MCA_MASTER read (`extractions`, `model = mca-portal`, no file, no AI) with notes from `portalNotes` (director in office here but not on MCA, ceased on MCA, appointment dates, open charges missing from the register of charges, company status / ACTIVE compliance) and MCA's last AGM / balance sheet date / charges; the panel opens `/clients/:id?mca=<read id>` (or `/clients?mca=…` for a new company) and the person saves in the usual review screen. Needs `clients.manage`. Director page → `compareDirector` against people with that DIN; read only.
+- Harness: `extension-test/mock-mca-master.html?cin=…&name=…` with `harness.html?mca=…`.
+- Smoke: `scripts/smoke-master.ts`.
