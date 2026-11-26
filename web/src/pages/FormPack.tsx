@@ -9,6 +9,7 @@ import { useLoad } from '../lib/hooks';
 import { fmtDate } from '../lib/format';
 import { useSession } from '../lib/session';
 import { Alert, Spinner } from '../components/ui';
+import { XbrlPanel } from '../components/XbrlPanel';
 
 interface Field { key: string; label: string; value: string | null; source: 'records' | 'client' | 'filing'; missing: boolean; optional: boolean; help?: string; fixAt?: string; input?: { scope: string; type?: string; options?: string[] } }
 interface Table { key: string; title: string; columns: string[]; rows: (string | number | null)[][]; empty: string }
@@ -36,6 +37,7 @@ export function FormPack() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string>();
   const [saved, setSaved] = useState(false);
+  const [version, setVersion] = useState(0);
   const { can } = useSession();
   useEffect(() => { if (data) setPack(data); }, [data]);
   if (error) return <div className="page"><Alert kind="error">{error}</Alert></div>;
@@ -45,7 +47,7 @@ export function FormPack() {
   const dirty = Object.keys(edits).length > 0;
   const save = async () => {
     setBusy(true); setErr(undefined);
-    try { setPack(await api<Pack>(`/obligations/${ob.id}/form`, { method: 'PUT', body: { values: edits } })); setEdits({}); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    try { setPack(await api<Pack>(`/obligations/${ob.id}/form`, { method: 'PUT', body: { values: edits } })); setEdits({}); setVersion((v) => v + 1); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
   const pct = p.progress.total ? Math.round((p.progress.filled / p.progress.total) * 100) : 100;
@@ -72,6 +74,7 @@ export function FormPack() {
         </div>
         <p className="muted small" style={{ margin: '8px 0 0' }}>Open the form on the MCA V3 portal, enter the CIN (it pre-fills the registration details), then copy the values below in order. Values typed here are kept: client-profile ones are reused every year.{p.note && <> {p.note}</>}</p>
       </section>
+      {p.form === 'AOC-4 XBRL' && <XbrlPanel obligationId={ob.id} version={version} />}
 
       {p.parts.map((part) => (
         <section key={part.title} className="card" style={{ marginBottom: 14 }}>

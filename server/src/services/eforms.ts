@@ -56,6 +56,9 @@ async function contextFor(tenantId: string, obligationId: string) {
   return { ob, spec, ctx, clientId: d.client.id };
 }
 
+/** The pack's context (filing, client records, meetings…) for other builders, e.g. the XBRL instance. */
+export const packContext = contextFor;
+
 export const hasPack = (ruleCode: string) => !!specFor(ruleCode);
 
 export async function formPack(tenantId: string, obligationId: string) {

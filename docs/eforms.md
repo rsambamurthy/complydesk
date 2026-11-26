@@ -13,7 +13,7 @@ Tables (shareholders, directors & KMP at year end, changes in the year, meetings
 |---|---|---|
 | MGT-7 / MGT-7A | MGT7, MGT7A, MGT7A_OPC | Parts I–XI; AGM due date (31 Dec for the first FY); MGT-8 flagged when paid-up ≥ ₹10 cr or turnover ≥ ₹50 cr |
 | AOC-4 | AOC4, AOC4_OPC | Part A, auditor; Part B = every Schedule III line, current and previous year (`fs.<line>.cy/py`, read from the statements or typed); CSR annexure flagged on s.135 thresholds (net worth, turnover, profit from the lines) |
-| AOC-4 XBRL | AOC4_XBRL | Same data; table *XBRL working paper* for the XBRL tool; attachments = instance document + human-readable PDF from MCA's validation tool. ComplyDesk does not generate the instance document (needs MCA's taxonomy and validation tool). |
+| AOC-4 XBRL | AOC4_XBRL | Same data + *XBRL details* parts (`xbrl.*`: employees, board meeting, rounding, revenue / depreciation splits, CSR, EPS, shares, signing auditor); table *XBRL working paper*; ComplyDesk generates the instance document — see `docs/xbrl.md`. |
 | DIR-12 | DIR12 | Purpose from the director's dates; category; reason for cessation; attachments by purpose |
 | ADT-1 | ADT1 | Auditor, term, appointment date |
 | PAS-3 | PAS3 | Allotment details; amount = shares × (nominal + premium); extra attachments for private placement / non-cash |

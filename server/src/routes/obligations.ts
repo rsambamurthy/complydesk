@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { reviewFor, checkDraft } from '../services/review.js';
+import { xbrlReport, xbrlXml } from '../services/xbrl.js';
 import { formPack, saveInputs, formWorkbook, hasPack } from '../services/eforms.js';
 import { db, schema, h, audit } from '../lib/core.js';
 import { requirePerm, clientScope, assertClientVisible } from '../auth/session.js';
@@ -87,6 +88,23 @@ obligationsRouter.put('/:id/form', requirePerm('compliance.work'), h(async (req,
   const out = await saveInputs(tid(req), ob.id, req.body?.values ?? {});
   await audit(req, 'filing.form', 'obligation', ob.id, req.body?.values);
   res.json(out);
+}));
+// AOC-4 XBRL: the instance document (C&I taxonomy 2016) — checks and coverage, and the XML download.
+obligationsRouter.get('/:id/xbrl', h(async (req, res) => {
+  reviewer(req);
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  res.json(await xbrlReport(tid(req), ob.id));
+}));
+obligationsRouter.get('/:id/xbrl.xml', h(async (req, res) => {
+  reviewer(req);
+  const ob = await getObligation(tid(req), req.params.id);
+  assertClientVisible(req, ob.clientId);
+  const { xml, fileName } = await xbrlXml(tid(req), ob.id);
+  await audit(req, 'filing.xbrl', 'obligation', ob.id, { fileName });
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+  res.send(xml);
 }));
 obligationsRouter.get('/:id/form.xlsx', h(async (req, res) => {
   reviewer(req);

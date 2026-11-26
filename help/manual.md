@@ -406,7 +406,16 @@ If the figures show the company must file in XBRL (paid-up capital ₹5 crore or
 
 ### AOC-4 XBRL
 
-Tick **Files financial statements in XBRL** on a client (Edit details) and the calendar shows **AOC-4 XBRL** in place of AOC-4. Its form data has the same figures plus an **XBRL working paper** (every line, this year and last) to copy into your XBRL tool. ComplyDesk does not make the XBRL instance document itself yet: prepare it in your XBRL tool and validate it with MCA's XBRL validation tool before attaching it.
+Tick **Files financial statements in XBRL** on a client (Edit details) and the calendar shows **AOC-4 XBRL** in place of AOC-4.
+
+ComplyDesk prepares the XBRL instance document (C&I taxonomy 2016, for companies following Accounting Standards):
+
+1. Read the financial statements on the AOC-4 XBRL filing (as for AOC-4).
+2. Open the form data and fill the **XBRL details**: number of employees, the board meeting that approved the accounts, the level of rounding, revenue split into products / services / other, depreciation and amortisation, CSR spend, earnings per share, and the signing auditor's name, membership number, PAN, address and report date. Company details, directors who signed, the company secretary and CFO, the register of members (for the share capital note) and the ADT-1 SRN come from your records.
+3. The **XBRL instance document** box on the same page lists what MCA's business rules still need, what's worth a look, and which sections the document covers. Save the values to refresh it.
+4. **Download XML** and check it with MCA's XBRL validation tool (which also makes the human-readable PDF) before attaching it to the form.
+
+The document covers general information, the balance sheet, the statement of profit and loss, the share capital note (one class of equity shares), signatories and auditor details. Notes such as the cash flow statement, reserves, borrowings, fixed assets, related parties and the directors' report are listed as **Not yet**: add them in your XBRL tool (most tools import an instance document) before filing. Ind AS companies use a different taxonomy and aren't covered yet.
 
 ### MCA master data from the portal
 
