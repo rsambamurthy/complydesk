@@ -7,6 +7,8 @@ import { parse } from '../lib/parse.js';
 import { applyTenantAction, getSettings, platformEventsList, settingsInput, tenantAction, tenantList, updateSettings } from '../services/platform.js';
 import { mailConfigured, sendMail, mailSummary, verifyMail } from '../lib/mailer.js';
 import { HttpError } from '../lib/core.js';
+import { allPayments, invoice, offlineInput, plansAndSeller, plansInput, recordOffline, savePlans, saveSeller, sellerInput } from '../services/subscription.js';
+import { gatewayEnabled, gatewayMode } from '../lib/razorpay.js';
 import { platformRules, savePlatformRule, createPlatformRule, resetPlatformRule, ruleHistoryFor, ruleInput, newRuleInput } from '../services/rules.js';
 
 export const platformRouter = Router();
@@ -16,6 +18,13 @@ platformRouter.get('/settings', h(async (_req, res) => res.json({ ...(await getS
 platformRouter.put('/settings', h(async (req, res) => res.json(await updateSettings(parse(settingsInput, req.body)))));
 platformRouter.get('/tenants', h(async (_req, res) => res.json(await tenantList())));
 platformRouter.post('/tenants/:id', h(async (req, res) => res.json(await applyTenantAction(req.params.id, parse(tenantAction, req.body), req.staff!.user.email))));
+// Subscriptions: plans and prices, Integrata's invoice details, payments (online and recorded by hand).
+platformRouter.get('/plans', h(async (_req, res) => res.json({ ...(await plansAndSeller()), gateway: { enabled: gatewayEnabled(), mode: gatewayEnabled() ? gatewayMode() : null } })));
+platformRouter.put('/plans', h(async (req, res) => res.json(await savePlans(parse(plansInput, req.body)))));
+platformRouter.put('/seller', h(async (req, res) => res.json(await saveSeller(parse(sellerInput, req.body)))));
+platformRouter.get('/payments', h(async (_req, res) => res.json(await allPayments())));
+platformRouter.get('/payments/:id', h(async (req, res) => res.json(await invoice(req.params.id, null))));
+platformRouter.post('/tenants/:id/payments', h(async (req, res) => res.status(201).json(await recordOffline(req.params.id, parse(offlineInput, req.body), req.staff!.user.email))));
 platformRouter.get('/help-questions', h(async (req, res) => res.json(await recentQuestions({ onlyGaps: req.query.gaps === '1' }))));
 platformRouter.get('/events', h(async (_req, res) => res.json(await platformEventsList())));
 

@@ -158,21 +158,22 @@ export function FeeTable({ clientId }: { clientId?: string }) {
   );
 }
 
-function useStates() {
+export function useStates() {
   return useLoad<{ code: string; name: string }[]>('/billing/states').data?.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` })) ?? [];
 }
 
-/** An inline form saved with PUT (firm details, a client's billing details). */
-function InlineForm({ fields, initial, path, saveLabel, after }: { fields: FieldDef[]; initial: Record<string, any>; path: string; saveLabel: string; after?: (r: any) => void }) {
+/** An inline form saved with PUT (firm details, a client's billing details, the firm's details for Integrata's invoice). */
+export function InlineForm({ fields, initial, path, saveLabel, after, canSave }: { fields: FieldDef[]; initial: Record<string, any>; path: string; saveLabel: string; after?: (r: any) => void; canSave?: boolean }) {
   const form = useRecordForm(initial);
   const { can } = useSession();
+  const allowed = canSave ?? can('billing.manage');
   const [ok, setOk] = useState(false);
   return (
     <div>
       {form.error && <Alert kind="error">{form.error}</Alert>}
       {ok && <Alert kind="success">Saved.</Alert>}
       <Fields fields={fields} form={form} />
-      {can('billing.manage') && <button className="btn btn-primary" style={{ marginTop: 12 }} disabled={form.busy} onClick={() => { setOk(false); form.submit(async (v) => { const r = await api(path, { method: 'PUT', body: v }); setOk(true); after?.(r); }); }}>{saveLabel}</button>}
+      {allowed && <button className="btn btn-primary" style={{ marginTop: 12 }} disabled={form.busy} onClick={() => { setOk(false); form.submit(async (v) => { const r = await api(path, { method: 'PUT', body: v }); setOk(true); after?.(r); }); }}>{saveLabel}</button>}
     </div>
   );
 }

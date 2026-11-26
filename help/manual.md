@@ -63,13 +63,13 @@ A firm signs up, verifies its email and starts a free trial straight away (or wa
 
 3.  Sign in with the **workspace code**, your email and password.
 
-4.  The trial bar at the top shows the days left and the client limit. To subscribe, write to info@integratatech.ai.
+4.  The trial bar at the top shows the days left and the client limit. **Subscribe** on it opens **Administration → Plan & payment** (section 12).
 
 ![Sign-up page: create your firm's workspace](/help/image3.png)
 
 *Sign up: the firm's workspace, the first admin, and the free trial.*
 
-When a trial ends or a payment is due, the workspace becomes read-only: everything can be seen, nothing can be changed.
+When a trial ends or a subscription lapses (7 days after its end date), the workspace becomes read-only: everything can be seen, nothing can be changed — except **Plan & payment**, so you can renew at once.
 
 ### Getting help
 
@@ -507,6 +507,7 @@ Firm Admins run the workspace from the Administration menu; Integrata runs the p
 | Page             | What you do there                                                                                                                                                                           |
 |------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Settings         | Filing workflow switches, reminder days, preview / send today's email (section 3)                                                                                                           |
+| Plan & payment   | Your ComplyDesk plan, clients and team members used against its limits, pay or renew online, Integrata's tax invoices (below)                                                               |
 | Compliance rules | See every rule (form, law, due date, who it applies to, late fee); make the firm's own version of a built-in rule or add a rule; each change keeps a history; **Built-in** puts a rule back |
 | Users            | Add users, roles, client access for client users, switch off daily email, disable accounts                                                                                                  |
 | Audit log        | Who changed what and when: client records, filings, moves, documents, settings                                                                                                              |
@@ -518,9 +519,25 @@ Firm Admins run the workspace from the Administration menu; Integrata runs the p
 
 Changing a rule re-works every client's calendar at once. The rules guide on that page explains each due-date kind (fixed date, after AGM / first board meeting, per period, after an event, KYC cycle, AGM last date).
 
+### Plan & payment (your ComplyDesk subscription)
+
+**Administration → Plan & payment** (Firm Admins). Each plan is a yearly price per workspace (plus 18% GST) with a limit on client companies and team members; client-portal users are free.
+
+1.  Under **Details for our invoice**, enter your billing address and state, and your GSTIN if you have one (to claim input tax credit). Save.
+
+2.  Each plan shows what paying today buys: a year from today (first time or after a lapse), a year from your current end date (renewal), or — for a bigger plan — just the difference for the days left, ending on the same date.
+
+3.  Press **Subscribe / Renew / Upgrade — pay ₹…**. Razorpay's window opens: pay by UPI, card, net banking or wallet. When it closes, the plan and paid-up date update at once, the tax invoice appears under **Payments and invoices** (open it to print or save as PDF), and a receipt is emailed.
+
+If the window closes before ComplyDesk hears back, Razorpay tells us directly and the payment is still recorded. Prefer a bank transfer? Write to info@integratatech.ai — Integrata records it and your invoice appears here the same way.
+
+Reminders are emailed 30, 7 and 1 day before the end date and the day after. A smaller plan can be chosen within 30 days of renewal, and only if your clients and team fit in it.
+
 ### Integrata platform console (Integrata only)
 
 - **Firms & sign-up** — every firm with status (pending approval, trial, active, trial ended, payment due, suspended), clients and users; approve, extend a trial, mark paid, suspend; the switch that makes new sign-ups wait for approval; trial length and trial client limit; a test email.
+
+- **Plans & payments** — the plans (name, client and team limits, yearly price, on sale or not), Integrata's invoice details (legal name, GSTIN, address, state, SAC, invoice prefix), and every payment with its invoice. On a firm's row in **Firms & sign-up**, **Record a payment** enters a bank transfer or cheque (UTR, date, plan; amount optional) — it numbers the invoice and extends the subscription exactly like an online payment. Online payment switches on when the Razorpay keys are set on the server.
 
 - **Built-in rules** — Integrata's version of each compliance rule, used by every firm that hasn't made its own. Software updates never overwrite Integrata's edits.
 

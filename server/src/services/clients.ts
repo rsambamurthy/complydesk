@@ -7,7 +7,7 @@ import type { z } from 'zod';
 import { db, schema, HttpError, notFound } from '../lib/core.js';
 import type { clientInput, personInput, shareholderInput, auditorInput, yearInput } from '../lib/validators.js';
 import { syncClient } from '../compliance/sync.js';
-import { assertClientCapacity } from './platform.js';
+import { assertClientCapacity } from './subscription.js';
 
 const { clients, people, shareholders, auditors, clientYears } = schema;
 type ClientIn = z.output<typeof clientInput>;

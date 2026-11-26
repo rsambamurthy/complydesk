@@ -120,6 +120,13 @@
       "when": 1795639771995,
       "tag": "0016_daily_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795712293352,
+      "tag": "0017_fair_norman_osborn",
+      "breakpoints": true
     }
   ]
 }

@@ -33,11 +33,13 @@ export function Shell() {
     ]),
     me.platformAdmin ? group('platform', 'Integrata platform', 'shield', [
       { to: '/platform', label: 'Firms & sign-up', icon: 'shield', end: true, show: true },
+      { to: '/platform/subscriptions', label: 'Plans & payments', icon: 'billing', show: true },
       { to: '/platform/rules', label: 'Built-in rules', icon: 'rules', show: true },
       { to: '/platform/updates', label: 'Regulatory updates', icon: 'mail', show: true },
     ]) : null,
     group('admin', 'Administration', 'config', [
       { to: '/admin/settings', label: 'Settings', icon: 'config', show: can('tenant.settings') },
+      { to: '/admin/subscription', label: 'Plan & payment', icon: 'billing', show: can('tenant.settings') && !me?.user.clientIds.length },
       { to: '/admin/rules', label: 'Compliance rules', icon: 'rules', show: can('clients.view') },
       { to: '/admin/users', label: 'Users', icon: 'users', show: can('users.manage') },
       { to: '/admin/audit', label: 'Audit log', icon: 'audit', show: can('audit.view') },
@@ -92,8 +94,8 @@ function AccessBar() {
   const a = me.access;
   return (
     <>
-      {a.state === 'TRIAL' && <div className={`trial-bar ${a.daysLeft > 7 ? 'quiet' : ''}`} role="status">Free trial · {a.daysLeft} day{a.daysLeft === 1 ? '' : 's'} left{a.clientLimit ? ` · up to ${a.clientLimit} client companies` : ''} · to subscribe, write to <a href="mailto:info@integratatech.ai">info@integratatech.ai</a></div>}
-      {!a.ok && <div className="trial-bar ended" role="status">{a.message}</div>}
+      {a.state === 'TRIAL' && <div className={`trial-bar ${a.daysLeft > 7 ? 'quiet' : ''}`} role="status">Free trial · {a.daysLeft} day{a.daysLeft === 1 ? '' : 's'} left{a.clientLimit ? ` · up to ${a.clientLimit} client companies` : ''} · <Link to="/admin/subscription">Subscribe</Link></div>}
+      {!a.ok && <div className="trial-bar ended" role="status">{a.message}{(a.state === 'TRIAL_ENDED' || a.state === 'PAYMENT_DUE') && <> <Link to="/admin/subscription">Renew now</Link></>}</div>}
       {!me.emailVerified && <div className="trial-bar quiet" role="status">Please confirm your email ({me.user.email}) using the link we sent. {resent === true ? 'Sent again ✓' : <><a href="#" onClick={async (e) => { e.preventDefault(); try { await api('/auth/resend-verification', { method: 'POST' }); setResent(true); } catch { setResent('We couldn’t send the email right now. Please try again later.'); } }}>Resend link</a>{typeof resent === 'string' && <span className="overdue"> {resent}</span>}</>}</div>}
     </>
   );

@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import { boolean, customType, date, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import type { DueRule, Applies, LateFee } from '../compliance/types.js';
+import type { Plan, Seller } from '../platform/plans.js';
 
 const id = () => text('id').primaryKey().$defaultFn(() => randomUUID());
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -49,8 +50,13 @@ export const tenants = pgTable('tenants', {
   /** PENDING_APPROVAL | TRIAL | ACTIVE | SUSPENDED (see services/platform.ts accessState) */
   status: text('status').notNull().default('ACTIVE'),
   trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
-  /** Paid until (manual activation now; Razorpay later). Null while ACTIVE = no end. */
+  /** Paid until (online payment or recorded by Integrata). Null while ACTIVE = no end. */
   paidUntil: timestamp('paid_until', { withTimezone: true }),
+  /** Subscription plan code (platform/plans.ts); null = none yet (trial, or activated before plans). */
+  plan: text('plan'),
+  /** Billing address and state code for Integrata's tax invoice (GSTIN above). */
+  billingAddress: text('billing_address'),
+  billingState: text('billing_state'),
   icsiNumber: text('icsi_number'),
   city: text('city'),
   gstin: text('gstin'),
@@ -69,6 +75,10 @@ export const platformSettings = pgTable('platform_settings', {
   trialDays: integer('trial_days').notNull().default(30),
   /** Client companies allowed during the trial (null = no limit). */
   trialClientLimit: integer('trial_client_limit').default(10),
+  /** Subscription plans offered (platform/plans.ts DEFAULT_PLANS when empty). */
+  plans: jsonb('plans').$type<Plan[]>(),
+  /** Integrata's details for its own tax invoices (legal name, GSTIN, address, state code, PAN, invoice prefix). */
+  seller: jsonb('seller').$type<Seller>(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -715,3 +725,37 @@ export const timeEntries = pgTable('time_entries', {
   note: text('note'),
   createdAt: createdAt(),
 }, (t) => [index('time_entries_tenant_ix').on(t.tenantId, t.date), index('time_entries_client_ix').on(t.clientId)]);
+
+/**
+ * A workspace's subscription payments to Integrata: online (Razorpay order → payment) or recorded by Integrata
+ * (bank transfer / cheque). PAID rows carry Integrata's tax invoice number and extend tenants.paid_until.
+ */
+export const subscriptionPayments = pgTable('subscription_payments', {
+  id: id(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  plan: text('plan').notNull(),
+  /** NEW | RENEW | UPGRADE */
+  kind: text('kind').notNull(),
+  periodFrom: date('period_from').notNull(),
+  periodTo: date('period_to').notNull(),
+  amount: numeric('amount').notNull(),
+  cgst: numeric('cgst').notNull().default('0'),
+  sgst: numeric('sgst').notNull().default('0'),
+  igst: numeric('igst').notNull().default('0'),
+  total: numeric('total').notNull(),
+  /** ONLINE | OFFLINE */
+  method: text('method').notNull(),
+  /** CREATED | PAID | FAILED */
+  status: text('status').notNull().default('CREATED'),
+  orderId: text('order_id'),
+  paymentId: text('payment_id'),
+  reference: text('reference'),
+  invoiceNo: text('invoice_no'),
+  invoiceDate: date('invoice_date'),
+  /** Buyer as invoiced (firm name, GSTIN, address, state) — kept as it was on the day. */
+  buyer: jsonb('buyer').$type<Record<string, string | null>>().notNull().default({}),
+  createdBy: text('created_by'),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('sub_payments_tenant_ix').on(t.tenantId), uniqueIndex('sub_payments_order_uq').on(t.orderId), uniqueIndex('sub_payments_invoice_uq').on(t.invoiceNo)]);
+export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect;

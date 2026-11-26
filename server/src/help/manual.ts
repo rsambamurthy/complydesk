@@ -118,6 +118,7 @@ const PAGES: [RegExp, string][] = [
   [/^\/clients/, 'clients'],
   [/^\/admin\/settings/, 'firm-settings-administration-settings'],
   [/^\/admin\/users/, 'add-your-team'],
+  [/^\/admin\/subscription/, 'plan-payment-your-complydesk-subscription'],
   [/^\/admin\/rules/, 'administration'],
   [/^\/admin\/audit/, 'administration'],
   [/^\/billing/, 'billing'],

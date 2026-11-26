@@ -22,11 +22,14 @@ import { teamRouter } from './routes/team.js';
 import { platformRegRouter, regulatoryRouter } from './routes/regulatory.js';
 import { extRouter, extTokensRouter, extDownload } from './routes/ext.js';
 import { requireExtension } from './auth/session.js';
+import { subscriptionRouter, razorpayWebhook } from './routes/subscription.js';
 
 export function createApp() {
   const app = express();
   app.set('trust proxy', true);
   app.use(helmet({ contentSecurityPolicy: false }));
+  // Razorpay calls this server-to-server: raw body for the signature, before the JSON parser and the CSRF check.
+  app.post('/api/razorpay/webhook', ...razorpayWebhook);
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
@@ -61,6 +64,8 @@ export function createApp() {
   app.get('/api/extension.zip', ...extDownload);
   // Help works in a read-only workspace too (asking logs a question, it changes no records).
   app.use('/api/help', requireStaff, helpRouter);
+  // Plan & payment works in a read-only (lapsed) workspace too — that is how it gets renewed.
+  app.use('/api/subscription', requireStaff, subscriptionRouter);
   app.use('/api/regulatory', requireStaff, requireWritable, regulatoryRouter);
   app.use('/api/team', requireStaff, requireWritable, teamRouter);
   app.use('/api/billing', requireStaff, requireWritable, billingRouter);

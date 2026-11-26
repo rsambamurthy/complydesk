@@ -1078,3 +1078,10 @@ ul.plain { list-style: none; margin: 0; padding: 0; } ul.plain li + li { margin-
 .fs-look { background: #fffbeb; }
 .fs-input { text-align: right; width: 100%; padding: 4px 8px; height: 30px; font-variant-numeric: tabular-nums; }
 .table.compact td:has(.fs-input) { padding-top: 3px; padding-bottom: 3px; }
+
+/* Plan & payment (pages/admin/Subscription.tsx) */
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.plan-card { display: flex; flex-direction: column; }
+.plan-card.current { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+.plan-price { font-size: 22px; font-weight: 700; }
+.plan-limits { margin: 0; padding-inline-start: 18px; display: grid; gap: 3px; }

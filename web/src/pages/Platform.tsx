@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { useLoad } from '../lib/hooks';
-import { fmtDate, fmtDateTime } from '../lib/format';
+import { fmtDate, fmtDateTime, money, today } from '../lib/format';
 import { Alert, Modal, Spinner } from '../components/ui';
 import { Fields, useRecordForm } from '../components/RecordForm';
 import type { Access } from '../lib/types';
@@ -10,7 +10,7 @@ import type { Access } from '../lib/types';
 interface Settings { requireApproval: boolean; trialDays: number; trialClientLimit: number | null; mailConfigured: boolean }
 interface T {
   id: string; slug: string; name: string; status: string; trialEndsAt: string | null; paidUntil: string | null; city: string | null; icsiNumber: string | null;
-  gstin: string | null; contactEmail: string | null; contactMobile: string | null; source: string; platformNotes: string | null; createdAt: string;
+  plan: string | null; gstin: string | null; contactEmail: string | null; contactMobile: string | null; source: string; platformNotes: string | null; createdAt: string;
   clients: number; users: number; lastLogin: string | null; admin: string | null; verified: boolean; access: Access;
 }
 const STATE: Record<string, [string, string]> = {
@@ -62,7 +62,7 @@ function StatusCell({ t }: { t: T }) {
   const [label, cls] = STATE[t.access.state] ?? [t.status, ''];
   return <><span className={`badge ${cls}`}>{label}</span>
     {t.access.state === 'TRIAL' && <span className="small muted block">{t.access.daysLeft} days left</span>}
-    {t.status === 'ACTIVE' && t.paidUntil && <span className="small muted block">Paid to {fmtDate(t.paidUntil.slice(0, 10))}</span>}</>;
+    {t.status === 'ACTIVE' && t.paidUntil && <span className="small muted block">{t.plan ? `${t.plan[0]}${t.plan.slice(1).toLowerCase()} · ` : ''}paid to {fmtDate(t.paidUntil.slice(0, 10))}</span>}</>;
 }
 
 function SettingsCard({ s, onSaved }: { s: Settings; onSaved: () => void }) {
@@ -92,6 +92,8 @@ function TenantModal({ t, onClose, onDone }: { t: T; onClose: () => void; onDone
   const [days, setDays] = useState(15);
   const [months, setMonths] = useState(12);
   const [notes, setNotes] = useState(t.platformNotes ?? '');
+  const plans = useLoad<{ plans: { code: string; name: string; price: number; active: boolean }[] }>('/platform/plans').data?.plans.filter((p) => p.active) ?? [];
+  const [pay, setPay] = useState({ plan: t.plan ?? '', reference: '', paidOn: today(), amount: '' });
   const act = async (body: Record<string, unknown>, confirmText?: string) => {
     if (confirmText && !window.confirm(confirmText)) return;
     setBusy(true); setErr(undefined);
@@ -112,7 +114,22 @@ function TenantModal({ t, onClose, onDone }: { t: T; onClose: () => void; onDone
         <div className="btn-row"><input type="number" min={1} max={365} value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ width: 90 }} aria-label="Days" />
           <button className="btn btn-secondary" disabled={busy} onClick={() => act({ action: 'extend_trial', days })}>Extend trial by {days} days</button></div>
         <div className="btn-row"><input type="number" min={1} max={36} value={months} onChange={(e) => setMonths(Number(e.target.value))} style={{ width: 90 }} aria-label="Months" />
-          <button className="btn btn-secondary" disabled={busy} onClick={() => act({ action: 'activate', months })}>Mark paid — active for {months} months</button></div>
+          <button className="btn btn-secondary" disabled={busy} onClick={() => act({ action: 'activate', months })}>Extend for {months} months without an invoice</button></div>
+        <fieldset className="card pad stack" style={{ margin: 0 }}>
+          <b>Record a payment by bank transfer or cheque</b>
+          <span className="muted small">Numbers Integrata’s tax invoice, extends the subscription as for an online payment and emails the receipt. Amount empty = the plan’s price (pro-rata for an upgrade).</span>
+          <div className="btn-row" style={{ flexWrap: 'wrap' }}>
+            <select value={pay.plan} onChange={(e) => setPay({ ...pay, plan: e.target.value })} aria-label="Plan"><option value="">Plan…</option>{plans.map((p) => <option key={p.code} value={p.code}>{p.name} · {money(p.price)}</option>)}</select>
+            <input placeholder="UTR / cheque no." value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} style={{ width: 170 }} aria-label="Reference" />
+            <input type="date" value={pay.paidOn} onChange={(e) => setPay({ ...pay, paidOn: e.target.value })} style={{ width: 150 }} aria-label="Paid on" />
+            <input type="number" placeholder="Amount excl. GST" value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} style={{ width: 150 }} aria-label="Amount" />
+            <button className="btn btn-primary" disabled={busy || !pay.plan || !pay.reference} onClick={async () => {
+              setBusy(true); setErr(undefined);
+              try { await api(`/platform/tenants/${t.id}/payments`, { body: { plan: pay.plan, reference: pay.reference, paidOn: pay.paidOn, ...(pay.amount ? { amount: Number(pay.amount) } : {}) } }); onDone(); }
+              catch (e: any) { setErr(e.message); setBusy(false); }
+            }}>Record payment</button>
+          </div>
+        </fieldset>
         <div className="btn-row">
           {t.status === 'SUSPENDED'
             ? <button className="btn btn-secondary" disabled={busy} onClick={() => act({ action: 'reactivate' })}>Reactivate</button>

@@ -1,13 +1,16 @@
-/** Printable invoice (A4) — opens in its own tab; the browser's Print saves it as PDF. */
+/**
+ * Printable invoice (A4) — opens in its own tab; the browser's Print saves it as PDF. One page for a firm's
+ * invoices to its clients and Integrata's subscription invoices to the firm (`source` gives the API path).
+ */
 import { useParams } from 'react-router-dom';
 import { useLoad } from '../lib/hooks';
 import { fmtDate, money2 } from '../lib/format';
 import { Spinner, Alert } from '../components/ui';
 import type { Invoice } from './InvoiceDetail';
 
-export function InvoicePrint() {
+export function InvoicePrint({ source = (id: string) => `/billing/invoices/${id}` }: { source?: (id: string) => string }) {
   const { id } = useParams();
-  const { data: i, error } = useLoad<Invoice>(`/billing/invoices/${id}`);
+  const { data: i, error } = useLoad<Invoice & { paidNote?: string }>(source(id!));
   if (error) return <Alert kind="error">{error}</Alert>;
   if (!i) return <Spinner />;
   const f = i.firm ?? {}; const b = i.billTo ?? {};
@@ -29,7 +32,7 @@ export function InvoicePrint() {
           <h1>{i.taxInvoice ? 'TAX INVOICE' : 'INVOICE'}</h1>
           <div>No. <b>{i.number ?? '(draft)'}</b></div>
           <div>Date: {fmtDate(i.date)}</div>
-          <div>Due: {fmtDate(i.dueDate)}</div>
+          {i.paidNote ? <div>{i.paidNote}</div> : <div>Due: {fmtDate(i.dueDate)}</div>}
         </div>
       </div>
       <div className="inv-to">

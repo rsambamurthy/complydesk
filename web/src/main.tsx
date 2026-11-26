@@ -30,6 +30,8 @@ import { ImportClients } from './pages/ImportClients';
 import { Rules } from './pages/admin/Rules';
 import { Users } from './pages/admin/Users';
 import { Audit } from './pages/admin/Audit';
+import { Subscription } from './pages/admin/Subscription';
+import { PlatformSubscriptions } from './pages/PlatformSubscriptions';
 import { Settings } from './pages/admin/Settings';
 import { FormPack } from './pages/FormPack';
 import { Help } from './pages/Help';
@@ -46,6 +48,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/meetings/:id/print/:doc" element={<RequireStaff><MeetingPrint /></RequireStaff>} />
           <Route path="/clients/:id/registers/:code/print" element={<RequireStaff><RegisterPrint /></RequireStaff>} />
           <Route path="/billing/invoices/:id/print" element={<RequireStaff><InvoicePrint /></RequireStaff>} />
+          <Route path="/admin/subscription/invoice/:id" element={<RequireStaff><InvoicePrint source={(id) => `/subscription/invoices/${id}`} /></RequireStaff>} />
+          <Route path="/platform/payments/:id/invoice" element={<RequireStaff><InvoicePrint source={(id) => `/platform/payments/${id}`} /></RequireStaff>} />
           <Route path="/clients/:id/report" element={<RequireStaff><ClientReport /></RequireStaff>} />
           <Route element={<RequireStaff><Shell /></RequireStaff>}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -68,8 +72,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/admin/users" element={<Users />} />
             <Route path="/admin/audit" element={<Audit />} />
             <Route path="/admin/settings" element={<Settings />} />
+            <Route path="/admin/subscription" element={<Subscription />} />
             <Route path="/platform" element={<Platform />} />
             <Route path="/platform/rules" element={<Rules platform />} />
+            <Route path="/platform/subscriptions" element={<PlatformSubscriptions />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

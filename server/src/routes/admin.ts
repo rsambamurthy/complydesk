@@ -7,6 +7,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, schema, h, audit, HttpError, notFound } from '../lib/core.js';
 import { requirePerm } from '../auth/session.js';
+import { assertUserCapacity } from '../services/subscription.js';
 import { parse } from '../lib/parse.js';
 import { settingsOf, settingsInput } from '../lib/settings.js';
 import { previewFor, runWorkspace } from '../services/reminders.js';
@@ -55,6 +56,7 @@ adminRouter.post('/users', requirePerm('users.manage'), h(async (req, res) => {
   await checkRefs(tid(req), b.roleIds, b.clientIds);
   const [dupe] = await db.select({ id: users.id }).from(users).where(and(eq(users.tenantId, tid(req)), eq(users.email, b.email)));
   if (dupe) throw new HttpError(409, 'A user with this email already exists', { email: 'Already a user' });
+  if (b.status === 'ACTIVE' && !b.clientIds.length) await assertUserCapacity(tid(req));
   const [u] = await db.insert(users).values({ tenantId: tid(req), name: b.name, email: b.email, status: b.status, remindersOff: b.remindersOff, clientIds: b.clientIds, mobile: b.mobile, whatsappOptInAt: b.whatsappOptIn && b.mobile ? new Date() : null, passwordHash: await bcrypt.hash(b.password, 10), emailVerifiedAt: new Date() }).returning();
   await db.insert(userRoles).values(b.roleIds.map((roleId) => ({ userId: u.id, roleId })));
   await audit(req, 'user.create', 'user', u.id, { email: b.email, roleIds: b.roleIds });
@@ -64,7 +66,9 @@ adminRouter.post('/users', requirePerm('users.manage'), h(async (req, res) => {
 adminRouter.patch('/users/:id', requirePerm('users.manage'), h(async (req, res) => {
   const b = parse(userInput, req.body);
   await checkRefs(tid(req), b.roleIds, b.clientIds);
-  const [cur] = await db.select({ at: users.whatsappOptInAt }).from(users).where(and(eq(users.id, req.params.id), eq(users.tenantId, tid(req))));
+  const [cur] = await db.select({ at: users.whatsappOptInAt, status: users.status, clientIds: users.clientIds }).from(users).where(and(eq(users.id, req.params.id), eq(users.tenantId, tid(req))));
+  // Counts against the plan only when this makes one more active firm user.
+  if (cur && b.status === 'ACTIVE' && !b.clientIds.length && (cur.status !== 'ACTIVE' || cur.clientIds.length)) await assertUserCapacity(tid(req));
   const optIn = b.whatsappOptIn && b.mobile ? (cur?.at ?? new Date()) : null;
   const [u] = await db.update(users).set({ name: b.name, email: b.email, status: b.status, remindersOff: b.remindersOff, clientIds: b.clientIds, mobile: b.mobile, whatsappOptInAt: optIn, ...(b.password ? { passwordHash: await bcrypt.hash(b.password, 10) } : {}) })
     .where(and(eq(users.id, req.params.id), eq(users.tenantId, tid(req)))).returning();

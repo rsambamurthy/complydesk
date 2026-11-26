@@ -43,23 +43,15 @@ export function accessState(t: Pick<Tenant, 'status' | 'trialEndsAt' | 'paidUnti
     case 'TRIAL': {
       const end = t.trialEndsAt?.getTime() ?? 0;
       if (end > now) return { ok: true, state: 'TRIAL', daysLeft: Math.ceil((end - now) / DAY), clientLimit };
-      return { ok: false, state: 'TRIAL_ENDED', message: 'Your free trial has ended. Your data is safe and read-only — contact Integrata to subscribe.' };
+      return { ok: false, state: 'TRIAL_ENDED', message: 'Your free trial has ended. Your data is safe and read-only — subscribe under Administration → Plan & payment.' };
     }
     default:
-      if (t.paidUntil && t.paidUntil.getTime() + 7 * DAY < now) return { ok: false, state: 'PAYMENT_DUE', message: 'Your subscription has lapsed. Your data is read-only until it is renewed.' };
+      if (t.paidUntil && t.paidUntil.getTime() + 7 * DAY < now) return { ok: false, state: 'PAYMENT_DUE', message: 'Your subscription has lapsed. Your data is read-only until it is renewed under Administration → Plan & payment.' };
       return { ok: true, state: 'ACTIVE' };
   }
 }
 
-/** Trial workspaces can hold a limited number of client companies. */
-export async function assertClientCapacity(tenantId: string, adding = 1) {
-  const [t] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
-  if (!t || t.status !== 'TRIAL') return;
-  const { trialClientLimit } = await getSettings();
-  if (!trialClientLimit) return;
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(clients).where(eq(clients.tenantId, tenantId));
-  if (n + adding > trialClientLimit) throw new HttpError(402, `The free trial covers up to ${trialClientLimit} client companies (you have ${n}). Contact Integrata to subscribe and add more.`);
-}
+/** Client and user limits (trial and plans) live in services/subscription.ts. */
 
 // ---- Sign-up --------------------------------------------------------------------------------------------
 const RESERVED = ['admin', 'platform', 'api', 'www', 'app', 'login', 'signup', 'support', 'integrata', 'demo'];

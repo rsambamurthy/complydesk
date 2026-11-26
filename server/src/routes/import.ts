@@ -13,7 +13,7 @@ import { requirePerm } from '../auth/session.js';
 import { clientInput, personInput, shareholderInput, fieldErrors, DESIGNATIONS } from '../lib/validators.js';
 import { createClient, peopleSvc, shareholdersSvc } from '../services/clients.js';
 import { syncClient } from '../compliance/sync.js';
-import { assertClientCapacity } from '../services/platform.js';
+import { assertClientCapacity } from '../services/subscription.js';
 
 export const importRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
